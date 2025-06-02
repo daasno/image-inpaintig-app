@@ -1,0 +1,17 @@
+# Image Inpainting Application - Dependencies
+# Core GUI Framework
+PySide6>=6.0.0
+
+# Image Processing
+opencv-python>=4.5.0
+numpy>=1.20.0
+
+# High-Performance Computing
+numba>=0.56.0
+
+# Optional: GPU Acceleration (requires NVIDIA GPU with CUDA)
+# Uncomment the line below if you have CUDA support
+# numba[cuda]
+
+# Additional utilities
+Pillow>=8.0.0 
