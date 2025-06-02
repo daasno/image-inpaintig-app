@@ -43,6 +43,7 @@ class AppController(QObject):
         self.main_window.save_result_requested.connect(self.save_result)
         self.main_window.run_inpainting_requested.connect(self.run_inpainting)
         self.main_window.reset_requested.connect(self.reset)
+        self.main_window.exhaustive_research_requested.connect(self.open_exhaustive_research)
         
         # Control panel signals
         control_panel = self.main_window.get_control_panel()
@@ -292,6 +293,43 @@ class AppController(QObject):
         
         # Update state
         self.update_ui_state()
+    
+    @Slot()
+    def open_exhaustive_research(self):
+        """Open the exhaustive research dialog"""
+        # Validate that we have images loaded
+        if not self.image_data.has_input_image:
+            self.main_window.show_warning_message(
+                "No Input Image",
+                "Please load an input image before starting exhaustive research."
+            )
+            return
+        
+        if not self.image_data.has_mask_image:
+            self.main_window.show_warning_message(
+                "No Mask Image",
+                "Please load a mask image before starting exhaustive research."
+            )
+            return
+        
+        # Import the dialog (we'll create this next)
+        try:
+            from views.dialogs.exhaustive_research_dialog import ExhaustiveResearchDialog
+            
+            # Create and show the dialog
+            dialog = ExhaustiveResearchDialog(
+                self.main_window,
+                self.image_data.input_image,
+                self.image_data.mask_image
+            )
+            dialog.exec()
+            
+        except ImportError:
+            # If the dialog doesn't exist yet, show a message
+            self.main_window.show_info_message(
+                "Coming Soon",
+                "The exhaustive research feature is being implemented. Stay tuned!"
+            )
     
     # Worker thread signal handlers
     @Slot(int)

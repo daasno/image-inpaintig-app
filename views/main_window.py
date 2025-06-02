@@ -48,6 +48,7 @@ class EnhancedMainWindow(QMainWindow):
     save_result_requested = Signal()
     run_inpainting_requested = Signal()
     reset_requested = Signal()
+    exhaustive_research_requested = Signal()  # New signal for exhaustive research
     
     # UX enhancement signals
     show_welcome_requested = Signal()
@@ -192,6 +193,31 @@ class EnhancedMainWindow(QMainWindow):
         self.run_btn.clicked.connect(self.run_inpainting_requested.emit)
         self.run_btn.setEnabled(False)
         layout.addWidget(self.run_btn)
+        
+        # Exhaustive Research button
+        self.research_btn = QPushButton("🔬 Exhaustive Research")
+        self.research_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #17a2b8;
+                color: white;
+                border: none;
+                padding: 12px;
+                border-radius: 6px;
+                font-weight: bold;
+                font-size: 14px;
+            }
+            QPushButton:hover {
+                background-color: #138496;
+            }
+            QPushButton:disabled {
+                background-color: #cccccc;
+                color: #666666;
+            }
+        """)
+        self.research_btn.clicked.connect(self.exhaustive_research_requested.emit)
+        self.research_btn.setEnabled(False)
+        self.research_btn.setToolTip("Run multiple parameter combinations to find optimal settings")
+        layout.addWidget(self.research_btn)
         
         # Save and reset buttons
         action_group = QFrame()
@@ -685,6 +711,7 @@ class EnhancedMainWindow(QMainWindow):
         self.load_image_btn.setEnabled(not processing)
         self.load_mask_btn.setEnabled(not processing)
         self.run_btn.setEnabled(not processing)
+        self.research_btn.setEnabled(not processing)  # Also disable research button
         self.save_btn.setEnabled(not processing and self.current_result_pixmap is not None)
         
         if processing:
@@ -716,6 +743,8 @@ class EnhancedMainWindow(QMainWindow):
     def set_run_button_enabled(self, enabled):
         """Enable/disable run button"""
         self.run_btn.setEnabled(enabled)
+        # Enable research button when run button is enabled
+        self.research_btn.setEnabled(enabled)
     
     def set_save_button_enabled(self, enabled):
         """Enable/disable save button"""
