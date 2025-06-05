@@ -3,8 +3,8 @@ Views package - UI components and widgets
 Enhanced with UX/UI improvements
 """
 
-# Main window - using simple version for testing
-from .main_window_simple import SimpleMainWindow as MainWindow
+# Main window - using enhanced version
+from .main_window import EnhancedMainWindow as MainWindow
 
 # Original widgets
 from .widgets.image_label import ImageLabel

@@ -43,6 +43,8 @@ class BatchProcessingThread(QThread):
         self.mask_image = mask_image
         self.combinations = combinations
         self.should_stop = False
+        self.current_result = None
+        self.current_error = None
         
     def run(self):
         """Run all parameter combinations"""
@@ -75,24 +77,56 @@ class BatchProcessingThread(QThread):
                     p_value=params['p_value']
                 )
                 
+                # Reset result variables
+                self.current_result = None
+                self.current_error = None
+                
+                # Connect worker signals
+                worker.process_complete.connect(self._on_worker_complete)
+                worker.error_occurred.connect(self._on_worker_error)
+                
                 # Run synchronously (we're already in a thread)
-                worker.moveToThread(self.thread())
                 worker.run()
                 
-                # Get result
-                result_image = worker.result_image
+                # Wait for worker to complete (since run() might return before signals are emitted)
+                # We'll use a simple loop to wait for either result or error
+                timeout_counter = 0
+                max_timeout = 300  # 30 seconds timeout (300 * 0.1 second intervals)
+                
+                while self.current_result is None and self.current_error is None and timeout_counter < max_timeout:
+                    self.msleep(100)  # Wait 100ms
+                    timeout_counter += 1
+                
                 processing_time = time.time() - start_time
                 
                 # Create result object
-                result = BatchResult(
-                    image=result_image,
-                    parameters=params.copy(),
-                    processing_time=processing_time,
-                    success=True
-                )
+                if self.current_result is not None:
+                    result = BatchResult(
+                        image=self.current_result,
+                        parameters=params.copy(),
+                        processing_time=processing_time,
+                        success=True
+                    )
+                elif self.current_error is not None:
+                    result = BatchResult(
+                        image=None,
+                        parameters=params.copy(),
+                        processing_time=processing_time,
+                        success=False,
+                        error_message=self.current_error
+                    )
+                else:
+                    # Timeout occurred
+                    result = BatchResult(
+                        image=None,
+                        parameters=params.copy(),
+                        processing_time=processing_time,
+                        success=False,
+                        error_message="Processing timeout occurred"
+                    )
                 
             except Exception as e:
-                # Handle errors
+                # Handle errors during worker creation
                 processing_time = time.time() - start_time
                 result = BatchResult(
                     image=None,
@@ -109,6 +143,14 @@ class BatchProcessingThread(QThread):
         self.progress_update.emit(100)
         self.status_update.emit("All combinations completed!")
         self.all_complete.emit()
+    
+    def _on_worker_complete(self, result_image):
+        """Handle worker completion"""
+        self.current_result = result_image
+    
+    def _on_worker_error(self, error_message):
+        """Handle worker error"""
+        self.current_error = error_message
     
     def stop(self):
         """Stop the batch processing"""
@@ -128,7 +170,7 @@ class ResultThumbnail(QFrame):
     def setup_ui(self):
         """Setup the thumbnail UI"""
         self.setFrameStyle(QFrame.Box)
-        self.setFixedSize(200, 250)
+        self.setFixedSize(130, 160)  # Smaller thumbnails for compact dialog
         self.setCursor(Qt.PointingHandCursor)
         
         layout = QVBoxLayout(self)
@@ -137,12 +179,12 @@ class ResultThumbnail(QFrame):
         # Image label
         self.image_label = QLabel()
         self.image_label.setScaledContents(True)
-        self.image_label.setFixedSize(190, 190)
+        self.image_label.setFixedSize(120, 120)  # Reduced from 140x140 to 120x120
         
         if self.result.success and self.result.image is not None:
             # Convert numpy array to QPixmap
             pixmap = self._numpy_to_pixmap(self.result.image)
-            self.image_label.setPixmap(pixmap.scaled(190, 190, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            self.image_label.setPixmap(pixmap.scaled(120, 120, Qt.KeepAspectRatio, Qt.SmoothTransformation))
         else:
             self.image_label.setText("Error")
             self.image_label.setAlignment(Qt.AlignCenter)
@@ -218,7 +260,7 @@ class ExhaustiveResearchDialog(QDialog):
         
         self.setWindowTitle("Exhaustive Research - Image Inpainting")
         self.setModal(True)
-        self.resize(1200, 800)
+        self.resize(800, 500)  # Much smaller, more reasonable dialog size
         
         self.setup_ui()
     
@@ -239,7 +281,7 @@ class ExhaustiveResearchDialog(QDialog):
         splitter.addWidget(results_widget)
         
         # Set splitter sizes
-        splitter.setSizes([400, 800])
+        splitter.setSizes([280, 520])  # Adjusted for 800px width: config panel 280, results panel 520
         
         # Bottom controls
         controls_layout = QHBoxLayout()
@@ -321,16 +363,7 @@ class ExhaustiveResearchDialog(QDialog):
         self.summary_label = QLabel()
         self.summary_label.setWordWrap(True)
         self.summary_label.setStyleSheet("background-color: #f0f0f0; padding: 10px; border-radius: 5px;")
-        self.update_summary()
         layout.addWidget(self.summary_label)
-        
-        # Connect signals to update summary
-        for checkbox in self.patch_checkboxes.values():
-            checkbox.toggled.connect(self.update_summary)
-        for checkbox in self.p_checkboxes.values():
-            checkbox.toggled.connect(self.update_summary)
-        self.cpu_checkbox.toggled.connect(self.update_summary)
-        self.gpu_checkbox.toggled.connect(self.update_summary)
         
         # Start button
         self.start_btn = QPushButton("🚀 Start Exhaustive Research")
@@ -354,6 +387,17 @@ class ExhaustiveResearchDialog(QDialog):
         """)
         self.start_btn.clicked.connect(self.start_research)
         layout.addWidget(self.start_btn)
+        
+        # Now update summary after start_btn is created
+        self.update_summary()
+        
+        # Connect signals to update summary
+        for checkbox in self.patch_checkboxes.values():
+            checkbox.toggled.connect(self.update_summary)
+        for checkbox in self.p_checkboxes.values():
+            checkbox.toggled.connect(self.update_summary)
+        self.cpu_checkbox.toggled.connect(self.update_summary)
+        self.gpu_checkbox.toggled.connect(self.update_summary)
         
         layout.addStretch()
         
@@ -516,8 +560,8 @@ class ExhaustiveResearchDialog(QDialog):
         thumbnail.clicked.connect(self.show_result_detail)
         
         # Add to grid
-        row = (len(self.results) - 1) // 4
-        col = (len(self.results) - 1) % 4
+        row = (len(self.results) - 1) // 6  # Changed from 5 to 6 columns for smaller dialog
+        col = (len(self.results) - 1) % 6
         self.results_layout.addWidget(thumbnail, row, col)
     
     @Slot()

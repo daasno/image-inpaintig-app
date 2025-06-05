@@ -45,6 +45,7 @@ class EnhancedMainWindow(QMainWindow):
     # Signals for user actions
     load_image_requested = Signal()
     load_mask_requested = Signal()
+    create_mask_requested = Signal(object)  # Pass the mask array
     save_result_requested = Signal()
     run_inpainting_requested = Signal()
     reset_requested = Signal()
@@ -289,9 +290,10 @@ class EnhancedMainWindow(QMainWindow):
             btn.setStyleSheet("""
                 QPushButton {
                     padding: 6px 12px;
-                    border: 1px solid #ccc;
+                    border: 1px solid #555;
                     border-radius: 4px;
-                    background-color: white;
+                    background-color: #3a3a3a;
+                    color: #cccccc;
                 }
                 QPushButton:checked {
                     background-color: #007acc;
@@ -299,7 +301,7 @@ class EnhancedMainWindow(QMainWindow):
                     border-color: #007acc;
                 }
                 QPushButton:hover {
-                    background-color: #f0f0f0;
+                    background-color: #4a4a4a;
                 }
                 QPushButton:checked:hover {
                     background-color: #005a9e;
@@ -317,13 +319,19 @@ class EnhancedMainWindow(QMainWindow):
         image_layout.addWidget(view_controls)
         
         # Single view (default)
-        self.single_viewer = ImageViewerWidget("Image Display")
+        if ENHANCED_VIEWER_AVAILABLE:
+            self.single_viewer = ImageViewerWidget("Image Display")
+        else:
+            self.single_viewer = ImageLabel()
         image_layout.addWidget(self.single_viewer)
         
         # Comparison view (hidden initially)
-        self.comparison_viewer = ComparisonViewWidget()
-        self.comparison_viewer.hide()
-        image_layout.addWidget(self.comparison_viewer)
+        if ENHANCED_VIEWER_AVAILABLE:
+            self.comparison_viewer = ComparisonViewWidget()
+            self.comparison_viewer.hide()
+            image_layout.addWidget(self.comparison_viewer)
+        else:
+            self.comparison_viewer = None
         
         splitter.addWidget(self.image_stack)
     
@@ -347,16 +355,20 @@ class EnhancedMainWindow(QMainWindow):
         
         file_menu.addSeparator()
         
-        # Recent files menus
-        self.recent_images_menu = RecentFilesMenu("Recent Images", self)
-        self.recent_images_menu.file_selected.connect(self.on_recent_image_selected)
-        file_menu.addMenu(self.recent_images_menu)
-        
-        self.recent_masks_menu = RecentFilesMenu("Recent Masks", self)
-        self.recent_masks_menu.file_selected.connect(self.on_recent_mask_selected)
-        file_menu.addMenu(self.recent_masks_menu)
-        
-        file_menu.addSeparator()
+        # Recent files menus (only if available)
+        if RECENT_FILES_AVAILABLE:
+            self.recent_images_menu = RecentFilesMenu("Recent Images", self)
+            self.recent_images_menu.file_selected.connect(self.on_recent_image_selected)
+            file_menu.addMenu(self.recent_images_menu)
+            
+            self.recent_masks_menu = RecentFilesMenu("Recent Masks", self)
+            self.recent_masks_menu.file_selected.connect(self.on_recent_mask_selected)
+            file_menu.addMenu(self.recent_masks_menu)
+            
+            file_menu.addSeparator()
+        else:
+            self.recent_images_menu = None
+            self.recent_masks_menu = None
         
         # Save actions
         save_action = QAction("&Save Result...", self)
@@ -478,6 +490,9 @@ class EnhancedMainWindow(QMainWindow):
     
     def setup_dock_widgets(self):
         """Setup dock widgets for advanced features"""
+        if not RECENT_FILES_AVAILABLE:
+            return
+            
         # Recent files dock
         recent_dock = QDockWidget("Recent Files", self)
         recent_dock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
@@ -526,55 +541,81 @@ class EnhancedMainWindow(QMainWindow):
         self.status_bar.addPermanentWidget(self.image_info_label)
     
     def apply_modern_styling(self):
-        """Apply modern styling to the application"""
+        """Apply dark theme styling to match the original"""
         self.setStyleSheet("""
             QMainWindow {
-                background-color: #f5f5f5;
+                background-color: #2b2b2b;
             }
             QFrame {
-                background-color: white;
+                background-color: #2b2b2b;
                 border-radius: 6px;
+                color: #cccccc;
             }
             QDockWidget {
-                background-color: white;
-                border: 1px solid #ddd;
+                background-color: #2b2b2b;
+                border: 1px solid #555;
                 border-radius: 4px;
+                color: #cccccc;
             }
             QDockWidget::title {
-                background-color: #f8f9fa;
+                background-color: #3a3a3a;
                 padding: 8px;
-                border-bottom: 1px solid #ddd;
+                border-bottom: 1px solid #555;
                 font-weight: bold;
+                color: #cccccc;
             }
             QStatusBar {
-                background-color: #f8f9fa;
-                border-top: 1px solid #ddd;
+                background-color: #3a3a3a;
+                border-top: 1px solid #555;
+                color: #cccccc;
             }
             QMenuBar {
-                background-color: white;
-                border-bottom: 1px solid #ddd;
+                background-color: #3a3a3a;
+                border-bottom: 1px solid #555;
+                color: #cccccc;
             }
             QMenuBar::item {
                 padding: 6px 12px;
                 background: transparent;
+                color: #cccccc;
             }
             QMenuBar::item:selected {
-                background-color: #e3f2fd;
+                background-color: #4a4a4a;
+            }
+            QMenu {
+                background-color: #3a3a3a;
+                border: 1px solid #555;
+                color: #cccccc;
+            }
+            QMenu::item:selected {
+                background-color: #4a4a4a;
             }
             QToolBar {
-                background-color: white;
-                border-bottom: 1px solid #ddd;
+                background-color: #3a3a3a;
+                border-bottom: 1px solid #555;
                 padding: 4px;
+                color: #cccccc;
             }
             QToolBar QToolButton {
                 padding: 6px;
                 border-radius: 4px;
                 margin: 2px;
+                color: #cccccc;
             }
             QToolBar QToolButton:hover {
-                background-color: #e3f2fd;
+                background-color: #4a4a4a;
+            }
+            QLabel {
+                color: #cccccc;
             }
         """)
+        
+        # Also set dark background for image display area
+        if hasattr(self, 'single_viewer'):
+            if not ENHANCED_VIEWER_AVAILABLE:
+                # For basic ImageLabel
+                self.single_viewer.setStyleSheet("border: 1px solid #444; background-color: #1e1e1e;")
+            # Enhanced viewers already have proper styling
     
     def apply_settings(self):
         """Apply settings to the window"""
@@ -589,12 +630,18 @@ class EnhancedMainWindow(QMainWindow):
     
     def update_recent_files(self):
         """Update recent files displays"""
+        if not RECENT_FILES_AVAILABLE:
+            return
+            
         # Update menus
-        self.recent_images_menu.update_recent_files(self.settings.recent_images)
-        self.recent_masks_menu.update_recent_files(self.settings.recent_masks)
+        if self.recent_images_menu:
+            self.recent_images_menu.update_recent_files(self.settings.recent_images)
+        if self.recent_masks_menu:
+            self.recent_masks_menu.update_recent_files(self.settings.recent_masks)
         
         # Update dock panel
-        self.recent_files_panel.update_recent_files(self.settings.recent_images)
+        if hasattr(self, 'recent_files_panel'):
+            self.recent_files_panel.update_recent_files(self.settings.recent_images)
     
     # View mode methods
     def show_single_view(self):
@@ -606,6 +653,9 @@ class EnhancedMainWindow(QMainWindow):
     
     def show_comparison_view(self):
         """Show side-by-side comparison view"""
+        if not ENHANCED_VIEWER_AVAILABLE or not self.comparison_viewer:
+            return
+            
         self.single_view_btn.setChecked(False)
         self.comparison_view_btn.setChecked(True)
         self.single_viewer.hide()
@@ -620,17 +670,17 @@ class EnhancedMainWindow(QMainWindow):
     # Zoom methods
     def zoom_in(self):
         """Zoom in current view"""
-        if self.single_viewer.isVisible():
+        if ENHANCED_VIEWER_AVAILABLE and hasattr(self.single_viewer, 'zoom_in') and self.single_viewer.isVisible():
             self.single_viewer.zoom_in()
     
     def zoom_out(self):
         """Zoom out current view"""
-        if self.single_viewer.isVisible():
+        if ENHANCED_VIEWER_AVAILABLE and hasattr(self.single_viewer, 'zoom_out') and self.single_viewer.isVisible():
             self.single_viewer.zoom_out()
     
     def zoom_to_fit(self):
         """Zoom to fit current view"""
-        if self.single_viewer.isVisible():
+        if ENHANCED_VIEWER_AVAILABLE and hasattr(self.single_viewer, 'zoom_to_fit') and self.single_viewer.isVisible():
             self.single_viewer.zoom_to_fit()
     
     # Image setting methods (maintaining compatibility)
@@ -638,11 +688,17 @@ class EnhancedMainWindow(QMainWindow):
         """Set input image"""
         pixmap = self.numpy_to_pixmap(image)
         self.current_input_pixmap = pixmap
-        self.single_viewer.set_image(pixmap)
-        self.comparison_viewer.set_original_image(pixmap)
+        
+        if ENHANCED_VIEWER_AVAILABLE and hasattr(self.single_viewer, 'set_image'):
+            self.single_viewer.set_image(pixmap)
+        else:
+            self.single_viewer.setPixmap(pixmap.scaled(self.single_viewer.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        
+        if ENHANCED_VIEWER_AVAILABLE and self.comparison_viewer:
+            self.comparison_viewer.set_original_image(pixmap)
         
         # Update metadata
-        if hasattr(self, 'current_input_path'):
+        if hasattr(self, 'metadata_widget') and hasattr(self, 'current_input_path'):
             self.metadata_widget.update_metadata(self.current_input_path)
         
         self.update_image_info("Input image loaded")
@@ -657,8 +713,14 @@ class EnhancedMainWindow(QMainWindow):
         """Set result image"""
         pixmap = self.numpy_to_pixmap(image)
         self.current_result_pixmap = pixmap
-        self.single_viewer.set_image(pixmap)
-        self.comparison_viewer.set_result_image(pixmap)
+        
+        if ENHANCED_VIEWER_AVAILABLE and hasattr(self.single_viewer, 'set_image'):
+            self.single_viewer.set_image(pixmap)
+        else:
+            self.single_viewer.setPixmap(pixmap.scaled(self.single_viewer.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        
+        if ENHANCED_VIEWER_AVAILABLE and self.comparison_viewer:
+            self.comparison_viewer.set_result_image(pixmap)
         
         self.update_image_info("Result image ready")
     
@@ -721,12 +783,13 @@ class EnhancedMainWindow(QMainWindow):
     
     def show_enhanced_progress_dialog(self):
         """Show enhanced progress dialog"""
-        if not self.progress_dialog:
-            self.progress_dialog = EnhancedProgressDialog("Image Inpainting", self)
-            self.progress_dialog.cancel_requested.connect(self.on_progress_cancel)
-        
-        self.progress_dialog.show()
-        self.progress_dialog.start_processing()
+        if ENHANCED_PROGRESS_AVAILABLE:
+            if not self.progress_dialog:
+                self.progress_dialog = EnhancedProgressDialog("Image Inpainting", self)
+                self.progress_dialog.cancel_requested.connect(self.on_progress_cancel)
+            
+            self.progress_dialog.show()
+            self.progress_dialog.start_processing()
     
     def hide_progress_dialog(self):
         """Hide progress dialog"""
@@ -756,17 +819,26 @@ class EnhancedMainWindow(QMainWindow):
         self.current_mask_pixmap = None
         self.current_result_pixmap = None
         
-        self.single_viewer.set_image(None)
-        self.comparison_viewer.set_original_image(None)
-        self.comparison_viewer.set_result_image(None)
+        if ENHANCED_VIEWER_AVAILABLE and hasattr(self.single_viewer, 'set_image'):
+            self.single_viewer.set_image(None)
+        else:
+            self.single_viewer.clear()
         
-        self.metadata_widget.clear_metadata()
+        if ENHANCED_VIEWER_AVAILABLE and self.comparison_viewer:
+            self.comparison_viewer.set_original_image(None)
+            self.comparison_viewer.set_result_image(None)
+        
+        if hasattr(self, 'metadata_widget'):
+            self.metadata_widget.clear_metadata()
         self.update_image_info("No image loaded")
         self.set_status_message("Ready")
     
     # Dialog methods
     def show_welcome_dialog(self):
         """Show welcome dialog"""
+        if not WELCOME_DIALOG_AVAILABLE:
+            return
+            
         if not self.welcome_dialog:
             self.welcome_dialog = WelcomeDialog(self)
             self.welcome_dialog.tutorial_requested.connect(self.tutorial_requested.emit)
