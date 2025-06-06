@@ -60,7 +60,7 @@ class AppSettings:
     
     # UI/UX settings
     show_tooltips: bool = True
-    show_welcome_dialog: bool = True
+    show_welcome_dialog: bool = False
     auto_save_settings: bool = True
     confirm_destructive_actions: bool = True
     show_progress_details: bool = True

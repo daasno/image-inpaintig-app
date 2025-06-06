@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QGroupBox,
                               QPushButton, QCheckBox, QLabel, QProgressBar,
                               QScrollArea, QWidget, QGridLayout, QFrame,
                               QSplitter, QListWidget, QListWidgetItem,
-                              QMessageBox, QSpinBox)
+                              QMessageBox, QSpinBox, QLineEdit, QFileDialog)
 from PySide6.QtCore import Qt, Signal, QThread, Slot
 from PySide6.QtGui import QPixmap, QPainter, QFont
 
@@ -161,6 +161,7 @@ class ResultThumbnail(QFrame):
     """Widget for displaying a single result thumbnail"""
     
     clicked = Signal(BatchResult)
+    selection_changed = Signal(bool)  # Signal emitted when selection state changes
     
     def __init__(self, result: BatchResult, parent=None):
         super().__init__(parent)
@@ -170,21 +171,28 @@ class ResultThumbnail(QFrame):
     def setup_ui(self):
         """Setup the thumbnail UI"""
         self.setFrameStyle(QFrame.Box)
-        self.setFixedSize(130, 160)  # Smaller thumbnails for compact dialog
+        self.setFixedSize(130, 180)  # Increased height to accommodate checkbox
         self.setCursor(Qt.PointingHandCursor)
         
         layout = QVBoxLayout(self)
         layout.setContentsMargins(5, 5, 5, 5)
         
+        # Selection checkbox at the top
+        self.selection_checkbox = QCheckBox()
+        self.selection_checkbox.setText("Select")
+        self.selection_checkbox.setStyleSheet("font-size: 10px; font-weight: bold;")
+        self.selection_checkbox.toggled.connect(self.on_selection_changed)
+        layout.addWidget(self.selection_checkbox)
+        
         # Image label
         self.image_label = QLabel()
         self.image_label.setScaledContents(True)
-        self.image_label.setFixedSize(120, 120)  # Reduced from 140x140 to 120x120
+        self.image_label.setFixedSize(120, 100)  # Reduced height to make room for checkbox
         
         if self.result.success and self.result.image is not None:
             # Convert numpy array to QPixmap
             pixmap = self._numpy_to_pixmap(self.result.image)
-            self.image_label.setPixmap(pixmap.scaled(120, 120, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            self.image_label.setPixmap(pixmap.scaled(120, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation))
         else:
             self.image_label.setText("Error")
             self.image_label.setAlignment(Qt.AlignCenter)
@@ -199,28 +207,11 @@ class ResultThumbnail(QFrame):
         params_label = QLabel(params_text)
         params_label.setWordWrap(True)
         params_label.setAlignment(Qt.AlignCenter)
-        params_label.setStyleSheet("font-size: 10px;")
+        params_label.setStyleSheet("font-size: 9px;")  # Slightly smaller font
         layout.addWidget(params_label)
         
-        # Style based on success
-        if self.result.success:
-            self.setStyleSheet("""
-                ResultThumbnail {
-                    border: 2px solid #ccc;
-                    background-color: white;
-                }
-                ResultThumbnail:hover {
-                    border: 2px solid #007acc;
-                    background-color: #f0f8ff;
-                }
-            """)
-        else:
-            self.setStyleSheet("""
-                ResultThumbnail {
-                    border: 2px solid #ff6666;
-                    background-color: #fff0f0;
-                }
-            """)
+        # Initialize styling
+        self.update_selection_style()
     
     def _numpy_to_pixmap(self, image):
         """Convert numpy array to QPixmap"""
@@ -241,6 +232,52 @@ class ResultThumbnail(QFrame):
             q_image = QImage(image.data, width, height, bytes_per_line, QImage.Format_Grayscale8)
         
         return QPixmap.fromImage(q_image)
+    
+    def on_selection_changed(self):
+        """Handle selection state change"""
+        self.selection_changed.emit(self.selection_checkbox.isChecked())
+        self.update_selection_style()
+    
+    def is_selected(self):
+        """Check if this thumbnail is selected"""
+        return self.selection_checkbox.isChecked()
+    
+    def set_selected(self, selected):
+        """Set the selection state"""
+        self.selection_checkbox.setChecked(selected)
+    
+    def update_selection_style(self):
+        """Update styling based on selection state"""
+        if self.result.success:
+            if self.is_selected():
+                self.setStyleSheet("""
+                    ResultThumbnail {
+                        border: 3px solid #28a745;
+                        background-color: #f8fff8;
+                    }
+                    ResultThumbnail:hover {
+                        border: 3px solid #1e7e34;
+                        background-color: #e8f8e8;
+                    }
+                """)
+            else:
+                self.setStyleSheet("""
+                    ResultThumbnail {
+                        border: 2px solid #ccc;
+                        background-color: white;
+                    }
+                    ResultThumbnail:hover {
+                        border: 2px solid #007acc;
+                        background-color: #f0f8ff;
+                    }
+                """)
+        else:
+            self.setStyleSheet("""
+                ResultThumbnail {
+                    border: 2px solid #ff6666;
+                    background-color: #fff0f0;
+                }
+            """)
     
     def mousePressEvent(self, event):
         """Handle mouse press events"""
@@ -315,13 +352,18 @@ class ExhaustiveResearchDialog(QDialog):
         patch_group = QGroupBox("Patch Sizes")
         patch_layout = QVBoxLayout(patch_group)
         
-        self.patch_checkboxes = {}
-        for size in range(3, 22, 2):  # 3, 5, 7, ..., 21
-            checkbox = QCheckBox(f"Size {size}")
-            if size in [7, 9, 11]:  # Default selections
-                checkbox.setChecked(True)
-            self.patch_checkboxes[size] = checkbox
-            patch_layout.addWidget(checkbox)
+        patch_label = QLabel("Enter patch sizes (comma-separated):")
+        patch_layout.addWidget(patch_label)
+        
+        self.patch_input = QLineEdit()
+        self.patch_input.setPlaceholderText("e.g., 3,5,7,9,11,13,15")
+        self.patch_input.setText("7,9,11")  # Default values
+        self.patch_input.setStyleSheet("padding: 8px; font-size: 12px;")
+        patch_layout.addWidget(self.patch_input)
+        
+        patch_help = QLabel("Valid range: 3-50 (odd numbers recommended)")
+        patch_help.setStyleSheet("color: #666; font-size: 10px; font-style: italic;")
+        patch_layout.addWidget(patch_help)
         
         layout.addWidget(patch_group)
         
@@ -329,14 +371,18 @@ class ExhaustiveResearchDialog(QDialog):
         p_group = QGroupBox("Minkowski Orders (P-values)")
         p_layout = QVBoxLayout(p_group)
         
-        self.p_checkboxes = {}
-        p_values = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0]
-        for p in p_values:
-            checkbox = QCheckBox(f"P = {p}")
-            if p in [1.0, 2.0]:  # Default selections
-                checkbox.setChecked(True)
-            self.p_checkboxes[p] = checkbox
-            p_layout.addWidget(checkbox)
+        p_label = QLabel("Enter p-values (comma-separated):")
+        p_layout.addWidget(p_label)
+        
+        self.p_input = QLineEdit()
+        self.p_input.setPlaceholderText("e.g., 0.5,1.0,2.0,3.0")
+        self.p_input.setText("1.0,2.0")  # Default values
+        self.p_input.setStyleSheet("padding: 8px; font-size: 12px;")
+        p_layout.addWidget(self.p_input)
+        
+        p_help = QLabel("Valid range: 0.1-10.0 (common values: 0.5, 1.0, 2.0)")
+        p_help.setStyleSheet("color: #666; font-size: 10px; font-style: italic;")
+        p_layout.addWidget(p_help)
         
         layout.addWidget(p_group)
         
@@ -392,10 +438,8 @@ class ExhaustiveResearchDialog(QDialog):
         self.update_summary()
         
         # Connect signals to update summary
-        for checkbox in self.patch_checkboxes.values():
-            checkbox.toggled.connect(self.update_summary)
-        for checkbox in self.p_checkboxes.values():
-            checkbox.toggled.connect(self.update_summary)
+        self.patch_input.textChanged.connect(self.update_summary)
+        self.p_input.textChanged.connect(self.update_summary)
         self.cpu_checkbox.toggled.connect(self.update_summary)
         self.gpu_checkbox.toggled.connect(self.update_summary)
         
@@ -408,10 +452,79 @@ class ExhaustiveResearchDialog(QDialog):
         widget = QWidget()
         layout = QVBoxLayout(widget)
         
-        # Title
+        # Title and selection controls
+        header_layout = QHBoxLayout()
+        
         title = QLabel("Results Gallery")
         title.setStyleSheet("font-size: 16px; font-weight: bold; padding: 10px;")
-        layout.addWidget(title)
+        header_layout.addWidget(title)
+        
+        header_layout.addStretch()
+        
+        # Selection controls
+        self.select_all_btn = QPushButton("Select All")
+        self.select_all_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #007acc;
+                color: white;
+                border: none;
+                padding: 8px 12px;
+                border-radius: 4px;
+                font-size: 12px;
+            }
+            QPushButton:hover {
+                background-color: #005999;
+            }
+        """)
+        self.select_all_btn.clicked.connect(self.select_all_results)
+        header_layout.addWidget(self.select_all_btn)
+        
+        self.deselect_all_btn = QPushButton("Deselect All")
+        self.deselect_all_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #6c757d;
+                color: white;
+                border: none;
+                padding: 8px 12px;
+                border-radius: 4px;
+                font-size: 12px;
+            }
+            QPushButton:hover {
+                background-color: #545b62;
+            }
+        """)
+        self.deselect_all_btn.clicked.connect(self.deselect_all_results)
+        header_layout.addWidget(self.deselect_all_btn)
+        
+        self.download_btn = QPushButton("💾 Download Selected")
+        self.download_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #28a745;
+                color: white;
+                border: none;
+                padding: 8px 12px;
+                border-radius: 4px;
+                font-weight: bold;
+                font-size: 12px;
+            }
+            QPushButton:hover {
+                background-color: #218838;
+            }
+            QPushButton:disabled {
+                background-color: #cccccc;
+                color: #666666;
+            }
+        """)
+        self.download_btn.clicked.connect(self.download_selected_results)
+        self.download_btn.setEnabled(False)
+        header_layout.addWidget(self.download_btn)
+        
+        layout.addLayout(header_layout)
+        
+        # Selection status label
+        self.selection_status_label = QLabel("No results yet")
+        self.selection_status_label.setStyleSheet("color: #666; font-size: 11px; padding: 5px 10px;")
+        layout.addWidget(self.selection_status_label)
         
         # Scroll area for results
         scroll_area = QScrollArea()
@@ -428,9 +541,13 @@ class ExhaustiveResearchDialog(QDialog):
     
     def update_summary(self):
         """Update the summary label with current selections"""
+        # Parse text inputs
+        patch_sizes = self.parse_patch_sizes()
+        p_values = self.parse_p_values()
+        
         # Count selections
-        patch_count = sum(1 for cb in self.patch_checkboxes.values() if cb.isChecked())
-        p_count = sum(1 for cb in self.p_checkboxes.values() if cb.isChecked())
+        patch_count = len(patch_sizes)
+        p_count = len(p_values)
         impl_count = sum(1 for cb in [self.cpu_checkbox, self.gpu_checkbox] if cb.isChecked() and cb.isEnabled())
         
         total_combinations = patch_count * p_count * impl_count
@@ -439,22 +556,65 @@ class ExhaustiveResearchDialog(QDialog):
         estimated_time = total_combinations * 3
         time_str = f"{estimated_time // 60}m {estimated_time % 60}s" if estimated_time >= 60 else f"{estimated_time}s"
         
+        # Check for parsing errors
+        patch_error = len(patch_sizes) == 0 and self.patch_input.text().strip() != ""
+        p_error = len(p_values) == 0 and self.p_input.text().strip() != ""
+        
         summary = f"<b>Total Combinations:</b> {total_combinations}<br>"
         summary += f"<b>Estimated Time:</b> ~{time_str}<br>"
         summary += f"<b>Selected:</b> {patch_count} patch sizes × {p_count} p-values × {impl_count} implementations"
         
+        if patch_error or p_error:
+            summary += "<br><font color='red'><b>Warning:</b> Invalid input format detected</font>"
+        
         self.summary_label.setText(summary)
         
         # Enable/disable start button
-        self.start_btn.setEnabled(total_combinations > 0)
+        self.start_btn.setEnabled(total_combinations > 0 and not patch_error and not p_error)
+    
+    def parse_patch_sizes(self):
+        """Parse patch sizes from text input"""
+        try:
+            text = self.patch_input.text().strip()
+            if not text:
+                return []
+            
+            sizes = []
+            for size_str in text.split(','):
+                size_str = size_str.strip()
+                if size_str:
+                    size = int(size_str)
+                    if 3 <= size <= 50:  # Reasonable range
+                        sizes.append(size)
+            return sizes
+        except (ValueError, TypeError):
+            return []
+    
+    def parse_p_values(self):
+        """Parse p-values from text input"""
+        try:
+            text = self.p_input.text().strip()
+            if not text:
+                return []
+            
+            values = []
+            for p_str in text.split(','):
+                p_str = p_str.strip()
+                if p_str:
+                    p = float(p_str)
+                    if 0.1 <= p <= 10.0:  # Reasonable range
+                        values.append(p)
+            return values
+        except (ValueError, TypeError):
+            return []
     
     def get_selected_combinations(self):
         """Get all selected parameter combinations"""
         combinations = []
         
-        # Get selected values
-        selected_patches = [size for size, cb in self.patch_checkboxes.items() if cb.isChecked()]
-        selected_p_values = [p for p, cb in self.p_checkboxes.items() if cb.isChecked()]
+        # Get parsed values
+        selected_patches = self.parse_patch_sizes()
+        selected_p_values = self.parse_p_values()
         selected_impls = []
         if self.cpu_checkbox.isChecked():
             selected_impls.append("CPU")
@@ -531,13 +691,114 @@ class ExhaustiveResearchDialog(QDialog):
     
     def set_configuration_enabled(self, enabled):
         """Enable/disable configuration controls"""
-        for checkbox in self.patch_checkboxes.values():
-            checkbox.setEnabled(enabled)
-        for checkbox in self.p_checkboxes.values():
-            checkbox.setEnabled(enabled)
+        self.patch_input.setEnabled(enabled)
+        self.p_input.setEnabled(enabled)
         self.cpu_checkbox.setEnabled(enabled)
         if InpaintWorker.check_gpu_availability():
             self.gpu_checkbox.setEnabled(enabled)
+    
+    def select_all_results(self):
+        """Select all result thumbnails"""
+        for i in range(self.results_layout.count()):
+            item = self.results_layout.itemAt(i)
+            if item and item.widget():
+                thumbnail = item.widget()
+                if isinstance(thumbnail, ResultThumbnail):
+                    thumbnail.set_selected(True)
+        self.update_selection_status()
+    
+    def deselect_all_results(self):
+        """Deselect all result thumbnails"""
+        for i in range(self.results_layout.count()):
+            item = self.results_layout.itemAt(i)
+            if item and item.widget():
+                thumbnail = item.widget()
+                if isinstance(thumbnail, ResultThumbnail):
+                    thumbnail.set_selected(False)
+        self.update_selection_status()
+    
+    def update_selection_status(self):
+        """Update the selection status label and download button"""
+        total_results = 0
+        selected_results = 0
+        
+        for i in range(self.results_layout.count()):
+            item = self.results_layout.itemAt(i)
+            if item and item.widget():
+                thumbnail = item.widget()
+                if isinstance(thumbnail, ResultThumbnail):
+                    total_results += 1
+                    if thumbnail.is_selected():
+                        selected_results += 1
+        
+        if total_results == 0:
+            self.selection_status_label.setText("No results yet")
+        else:
+            self.selection_status_label.setText(f"{selected_results} of {total_results} results selected")
+        
+        # Enable download button only if at least one result is selected
+        self.download_btn.setEnabled(selected_results > 0)
+    
+    def download_selected_results(self):
+        """Download all selected results"""
+        selected_thumbnails = []
+        
+        # Collect selected thumbnails
+        for i in range(self.results_layout.count()):
+            item = self.results_layout.itemAt(i)
+            if item and item.widget():
+                thumbnail = item.widget()
+                if isinstance(thumbnail, ResultThumbnail) and thumbnail.is_selected():
+                    selected_thumbnails.append(thumbnail)
+        
+        if not selected_thumbnails:
+            QMessageBox.warning(self, "No Selection", "Please select at least one result to download.")
+            return
+        
+        # Ask user to choose directory
+        directory = QFileDialog.getExistingDirectory(
+            self,
+            "Choose Directory to Save Results",
+            "",
+            QFileDialog.ShowDirsOnly
+        )
+        
+        if not directory:
+            return  # User cancelled
+        
+        # Save selected images
+        import os
+        import cv2
+        saved_count = 0
+        
+        try:
+            for idx, thumbnail in enumerate(selected_thumbnails):
+                result = thumbnail.result
+                if result.success and result.image is not None:
+                    # Generate filename with parameters
+                    filename = f"inpaint_patch{result.parameters['patch_size']}_p{result.parameters['p_value']}_{result.parameters['implementation'].lower()}_{idx + 1:03d}.png"
+                    filepath = os.path.join(directory, filename)
+                    
+                    # Convert from RGB to BGR for OpenCV
+                    image_bgr = cv2.cvtColor(result.image, cv2.COLOR_RGB2BGR)
+                    success = cv2.imwrite(filepath, image_bgr)
+                    
+                    if success:
+                        saved_count += 1
+            
+            # Show success message
+            QMessageBox.information(
+                self,
+                "Download Complete",
+                f"Successfully saved {saved_count} of {len(selected_thumbnails)} selected images to:\n{directory}"
+            )
+            
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                "Download Error",
+                f"An error occurred while saving images:\n{str(e)}"
+            )
     
     @Slot(int)
     def on_progress_update(self, value):
@@ -558,11 +819,15 @@ class ExhaustiveResearchDialog(QDialog):
         # Create thumbnail
         thumbnail = ResultThumbnail(result)
         thumbnail.clicked.connect(self.show_result_detail)
+        thumbnail.selection_changed.connect(self.update_selection_status)
         
         # Add to grid
-        row = (len(self.results) - 1) // 6  # Changed from 5 to 6 columns for smaller dialog
-        col = (len(self.results) - 1) % 6
+        row = (len(self.results) - 1) // 5  # Keep 5 columns due to increased thumbnail height
+        col = (len(self.results) - 1) % 5
         self.results_layout.addWidget(thumbnail, row, col)
+        
+        # Update selection status
+        self.update_selection_status()
     
     @Slot()
     def on_all_complete(self):
@@ -616,4 +881,4 @@ class ExhaustiveResearchDialog(QDialog):
             else:
                 event.ignore()
         else:
-            event.accept() 
+            event.accept()
