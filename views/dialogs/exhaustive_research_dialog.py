@@ -11,11 +11,24 @@ from PySide6.QtCore import Qt, Signal, QThread, Slot
 from PySide6.QtGui import QPixmap, QPainter, QFont
 
 import time
+import os
+import webbrowser
+import tempfile
 from dataclasses import dataclass
 from typing import List, Tuple, Dict, Any
 
 from models.inpaint_worker import InpaintWorker
 from config.settings import AppConstants
+
+try:
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    import pandas as pd
+    plt.style.use('default')  # Use default matplotlib style
+    PLOTTING_AVAILABLE = True
+except ImportError:
+    PLOTTING_AVAILABLE = False
+    print("Warning: Matplotlib/Seaborn not available. Install with: pip install matplotlib seaborn pandas")
 
 
 @dataclass
@@ -519,6 +532,32 @@ class ExhaustiveResearchDialog(QDialog):
         self.download_btn.setEnabled(False)
         header_layout.addWidget(self.download_btn)
         
+        # Plot results button
+        self.plot_btn = QPushButton("📊 Plot Results")
+        self.plot_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #9b59b6;
+                color: white;
+                border: none;
+                padding: 8px 12px;
+                border-radius: 4px;
+                font-weight: bold;
+                font-size: 12px;
+            }
+            QPushButton:hover {
+                background-color: #8e44ad;
+            }
+            QPushButton:disabled {
+                background-color: #cccccc;
+                color: #666666;
+            }
+        """)
+        self.plot_btn.clicked.connect(self.plot_results)
+        self.plot_btn.setEnabled(False)
+        if not PLOTTING_AVAILABLE:
+            self.plot_btn.setToolTip("Matplotlib/Seaborn not installed. Install with: pip install matplotlib seaborn pandas")
+        header_layout.addWidget(self.plot_btn)
+        
         layout.addLayout(header_layout)
         
         # Selection status label
@@ -738,6 +777,9 @@ class ExhaustiveResearchDialog(QDialog):
         
         # Enable download button only if at least one result is selected
         self.download_btn.setEnabled(selected_results > 0)
+        
+        # Enable plot button if we have any results and plotting libraries are available
+        self.plot_btn.setEnabled(total_results > 0 and PLOTTING_AVAILABLE)
     
     def download_selected_results(self):
         """Download all selected results"""
@@ -799,6 +841,154 @@ class ExhaustiveResearchDialog(QDialog):
                 "Download Error",
                 f"An error occurred while saving images:\n{str(e)}"
             )
+    
+    def plot_results(self):
+        """Create and display a bar chart of processing times using seaborn"""
+        print("Plot results button clicked!")
+        
+        if not PLOTTING_AVAILABLE:
+            QMessageBox.warning(
+                self,
+                "Plotting Libraries Not Available",
+                "Matplotlib/Seaborn are not installed. Please install with:\npip install matplotlib seaborn pandas"
+            )
+            return
+        
+        # Collect data from all results
+        data = []
+        
+        for result in self.results:
+            if result.success:
+                data.append({
+                    'Configuration': f"Patch{result.parameters['patch_size']} P{result.parameters['p_value']} {result.parameters['implementation']}",
+                    'Processing Time (seconds)': result.processing_time,
+                    'Implementation': result.parameters['implementation'],
+                    'Patch Size': result.parameters['patch_size'],
+                    'P Value': result.parameters['p_value']
+                })
+        
+        if not data:
+            QMessageBox.warning(self, "No Data", "No successful results to plot.")
+            return
+        
+        # Create DataFrame
+        df = pd.DataFrame(data)
+        
+        # Create the plot
+        plt.figure(figsize=(12, 8))
+        
+        # Define colors for different implementations
+        colors = {'GPU': '#00a8ff', 'CPU': '#ff6b6b'}
+        
+        # Create bar plot
+        ax = sns.barplot(
+            data=df, 
+            x='Configuration', 
+            y='Processing Time (seconds)',
+            hue='Implementation',
+            palette=colors,
+            dodge=False  # No dodging since we might only have one implementation
+        )
+        
+        # Customize the plot
+        plt.title('Inpainting Processing Times by Configuration', fontsize=16, fontweight='bold', pad=20)
+        plt.xlabel('Configuration (Patch Size, P-Value, Implementation)', fontsize=12, fontweight='bold')
+        plt.ylabel('Processing Time (seconds)', fontsize=12, fontweight='bold')
+        
+        # Rotate x-axis labels for better readability
+        plt.xticks(rotation=45, ha='right')
+        
+        # Add value labels on top of bars
+        for i, v in enumerate(df['Processing Time (seconds)']):
+            ax.text(i, v + 0.1, f'{v:.2f}s', ha='center', va='bottom', fontweight='bold')
+        
+        # Add grid for better readability
+        plt.grid(axis='y', alpha=0.3, linestyle='--')
+        
+        # Adjust layout to prevent label cutoff
+        plt.tight_layout()
+        
+        # Save the plot
+        from tkinter import filedialog
+        import tkinter as tk
+        
+        # Create a temporary file first, then ask user where to save
+        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_file:
+            plt.savefig(tmp_file.name, dpi=300, bbox_inches='tight')
+            temp_path = tmp_file.name
+        
+        # Show the plot
+        plt.show()
+        
+        # Ask user if they want to save the plot
+        reply = QMessageBox.question(
+            self, 
+            'Save Plot?', 
+            'Do you want to save this plot to a file?',
+            QMessageBox.Yes | QMessageBox.No, 
+            QMessageBox.Yes
+        )
+        
+        if reply == QMessageBox.Yes:
+            # Hide the main window temporarily to show file dialog properly
+            self.hide()
+            
+            # Ask user where to save
+            file_path, _ = QFileDialog.getSaveFileName(
+                None,
+                "Save Plot As",
+                "inpainting_processing_times.png",
+                "PNG files (*.png);;PDF files (*.pdf);;SVG files (*.svg);;All files (*.*)"
+            )
+            
+            # Show the main window again
+            self.show()
+            
+            if file_path:
+                try:
+                    # Re-create and save the plot to the chosen location
+                    plt.figure(figsize=(12, 8))
+                    ax = sns.barplot(
+                        data=df, 
+                        x='Configuration', 
+                        y='Processing Time (seconds)',
+                        hue='Implementation',
+                        palette=colors,
+                        dodge=False
+                    )
+                    plt.title('Inpainting Processing Times by Configuration', fontsize=16, fontweight='bold', pad=20)
+                    plt.xlabel('Configuration (Patch Size, P-Value, Implementation)', fontsize=12, fontweight='bold')
+                    plt.ylabel('Processing Time (seconds)', fontsize=12, fontweight='bold')
+                    plt.xticks(rotation=45, ha='right')
+                    
+                    # Add value labels
+                    for i, v in enumerate(df['Processing Time (seconds)']):
+                        ax.text(i, v + 0.1, f'{v:.2f}s', ha='center', va='bottom', fontweight='bold')
+                    
+                    plt.grid(axis='y', alpha=0.3, linestyle='--')
+                    plt.tight_layout()
+                    
+                    # Save with high quality
+                    plt.savefig(file_path, dpi=300, bbox_inches='tight')
+                    plt.close()  # Close the figure to free memory
+                    
+                    QMessageBox.information(
+                        self,
+                        "Plot Saved",
+                        f"The plot has been saved to:\n{file_path}"
+                    )
+                except Exception as e:
+                    QMessageBox.warning(
+                        self,
+                        "Save Error",
+                        f"Could not save the plot:\n{str(e)}"
+                    )
+        
+        # Clean up temporary file
+        try:
+            os.unlink(temp_path)
+        except:
+            pass
     
     @Slot(int)
     def on_progress_update(self, value):

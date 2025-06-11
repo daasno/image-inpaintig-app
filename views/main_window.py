@@ -12,6 +12,7 @@ from PySide6.QtGui import QAction, QKeySequence, QPixmap, QIcon
 from config.settings import AppSettings
 from .widgets.image_label import ImageLabel
 from .widgets.control_panel import ControlPanel
+from .widgets.mask_editor import MaskEditorDialog
 
 # Enhanced widgets - import only what exists
 try:
@@ -63,6 +64,8 @@ class EnhancedMainWindow(QMainWindow):
         self.current_input_pixmap = None
         self.current_mask_pixmap = None
         self.current_result_pixmap = None
+        self.current_input_image = None  # For mask editor
+        self.current_mask_array = None  # Original binary mask for inpainting
         self.progress_dialog = None
         self.welcome_dialog = None
         
@@ -78,9 +81,9 @@ class EnhancedMainWindow(QMainWindow):
         # Apply settings
         self.apply_settings()
         
-        # Show welcome dialog on first run
-        if self.settings.show_welcome_dialog:
-            QTimer.singleShot(500, self.show_welcome_dialog)
+        # Welcome dialog is now disabled
+        # if self.settings.show_welcome_dialog:
+        #     QTimer.singleShot(500, self.show_welcome_dialog)
     
     def setup_ui(self):
         """Setup the main UI"""
@@ -168,6 +171,29 @@ class EnhancedMainWindow(QMainWindow):
         """)
         self.load_mask_btn.clicked.connect(self.load_mask_requested.emit)
         load_layout.addWidget(self.load_mask_btn)
+        
+        self.create_mask_btn = QPushButton("✏️ Create Mask")
+        self.create_mask_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #6f42c1;
+                color: white;
+                border: none;
+                padding: 10px;
+                border-radius: 6px;
+                font-weight: bold;
+                font-size: 13px;
+            }
+            QPushButton:hover {
+                background-color: #5a32a3;
+            }
+            QPushButton:disabled {
+                background-color: #cccccc;
+                color: #666666;
+            }
+        """)
+        self.create_mask_btn.clicked.connect(self.open_mask_editor)
+        self.create_mask_btn.setEnabled(False)  # Disabled until image is loaded
+        load_layout.addWidget(self.create_mask_btn)
         
         layout.addWidget(load_group)
         
@@ -273,12 +299,71 @@ class EnhancedMainWindow(QMainWindow):
         self.image_stack = QWidget()
         image_layout = QVBoxLayout(self.image_stack)
         
+        # Image tabs selector
+        tabs_controls = QFrame()
+        tabs_layout = QHBoxLayout(tabs_controls)
+        
+        tabs_label = QLabel("View:")
+        tabs_label.setStyleSheet("font-weight: bold; color: #cccccc;")
+        tabs_layout.addWidget(tabs_label)
+        
+        # Image tab buttons
+        self.input_tab_btn = QPushButton("📷 Input")
+        self.mask_tab_btn = QPushButton("🎭 Mask")
+        self.result_tab_btn = QPushButton("✨ Result")
+        
+        # Tab styling
+        tab_style = """
+            QPushButton {
+                padding: 8px 16px;
+                border: 1px solid #555;
+                border-radius: 4px;
+                background-color: #3a3a3a;
+                color: #cccccc;
+                font-weight: bold;
+            }
+            QPushButton:checked {
+                background-color: #007acc;
+                color: white;
+                border-color: #007acc;
+            }
+            QPushButton:hover {
+                background-color: #4a4a4a;
+            }
+            QPushButton:checked:hover {
+                background-color: #005a9e;
+            }
+            QPushButton:disabled {
+                background-color: #2a2a2a;
+                color: #666666;
+                border-color: #333;
+            }
+        """
+        
+        for btn in [self.input_tab_btn, self.mask_tab_btn, self.result_tab_btn]:
+            btn.setCheckable(True)
+            btn.setStyleSheet(tab_style)
+        
+        self.input_tab_btn.setChecked(True)
+        self.input_tab_btn.clicked.connect(lambda: self.show_image_tab('input'))
+        self.mask_tab_btn.clicked.connect(lambda: self.show_image_tab('mask'))
+        self.result_tab_btn.clicked.connect(lambda: self.show_image_tab('result'))
+        
+        # Initially disable mask and result tabs
+        self.mask_tab_btn.setEnabled(False)
+        self.result_tab_btn.setEnabled(False)
+        
+        tabs_layout.addWidget(self.input_tab_btn)
+        tabs_layout.addWidget(self.mask_tab_btn)
+        tabs_layout.addWidget(self.result_tab_btn)
+        tabs_layout.addStretch()
+        
         # View mode selector
         view_controls = QFrame()
         view_layout = QHBoxLayout(view_controls)
         
         view_label = QLabel("View Mode:")
-        view_label.setStyleSheet("font-weight: bold; color: #333;")
+        view_label.setStyleSheet("font-weight: bold; color: #cccccc;")
         view_layout.addWidget(view_label)
         
         # View mode buttons
@@ -316,6 +401,7 @@ class EnhancedMainWindow(QMainWindow):
         view_layout.addWidget(self.comparison_view_btn)
         view_layout.addStretch()
         
+        image_layout.addWidget(tabs_controls)
         image_layout.addWidget(view_controls)
         
         # Single view (default)
@@ -643,7 +729,38 @@ class EnhancedMainWindow(QMainWindow):
         if hasattr(self, 'recent_files_panel'):
             self.recent_files_panel.update_recent_files(self.settings.recent_images)
     
-    # View mode methods
+    # Image tab and view mode methods
+    def show_image_tab(self, tab_name):
+        """Show specific image tab"""
+        # Update tab button states
+        self.input_tab_btn.setChecked(tab_name == 'input')
+        self.mask_tab_btn.setChecked(tab_name == 'mask')
+        self.result_tab_btn.setChecked(tab_name == 'result')
+        
+        # Display appropriate image
+        if tab_name == 'input' and self.current_input_pixmap:
+            self._display_image(self.current_input_pixmap, "Input Image")
+        elif tab_name == 'mask' and self.current_mask_pixmap:
+            self._display_image(self.current_mask_pixmap, "Mask Image")
+        elif tab_name == 'result' and self.current_result_pixmap:
+            self._display_image(self.current_result_pixmap, "Result Image")
+        else:
+            # Clear display if no image available
+            if ENHANCED_VIEWER_AVAILABLE and hasattr(self.single_viewer, 'set_image'):
+                self.single_viewer.set_image(None)
+            else:
+                self.single_viewer.clear()
+    
+    def _display_image(self, pixmap, title):
+        """Helper method to display an image pixmap"""
+        if ENHANCED_VIEWER_AVAILABLE and hasattr(self.single_viewer, 'set_image'):
+            self.single_viewer.set_image(pixmap)
+        else:
+            scaled_pixmap = pixmap.scaled(
+                self.single_viewer.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation
+            )
+            self.single_viewer.setPixmap(scaled_pixmap)
+
     def show_single_view(self):
         """Show single image view"""
         self.single_view_btn.setChecked(True)
@@ -686,16 +803,20 @@ class EnhancedMainWindow(QMainWindow):
     # Image setting methods (maintaining compatibility)
     def set_input_image(self, image):
         """Set input image"""
+        # Store the numpy array for mask editor
+        self.current_input_image = image.copy() if image is not None else None
+        
         pixmap = self.numpy_to_pixmap(image)
         self.current_input_pixmap = pixmap
         
-        if ENHANCED_VIEWER_AVAILABLE and hasattr(self.single_viewer, 'set_image'):
-            self.single_viewer.set_image(pixmap)
-        else:
-            self.single_viewer.setPixmap(pixmap.scaled(self.single_viewer.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        # Display the input image
+        self._display_image(pixmap, "Input Image")
         
         if ENHANCED_VIEWER_AVAILABLE and self.comparison_viewer:
             self.comparison_viewer.set_original_image(pixmap)
+        
+        # Enable/disable create mask button based on image availability
+        self.create_mask_btn.setEnabled(image is not None)
         
         # Update metadata
         if hasattr(self, 'metadata_widget') and hasattr(self, 'current_input_path'):
@@ -705,19 +826,28 @@ class EnhancedMainWindow(QMainWindow):
     
     def set_mask_image(self, image):
         """Set mask image"""
-        pixmap = self.numpy_to_pixmap(image)
+        # Store the original binary mask for inpainting
+        self.current_mask_array = image.copy()
+        
+        # Create enhanced visualization for better mask visibility
+        pixmap = self.create_enhanced_mask_pixmap(image)
         self.current_mask_pixmap = pixmap
-        # Note: Mask visualization could be added here
+        
+        # Enable mask tab and switch to it to show the mask
+        self.mask_tab_btn.setEnabled(True)
+        self.show_image_tab('mask')
+        
+        # Update image info
+        self.update_image_info("Mask image loaded - Red areas will be inpainted")
     
     def set_result_image(self, image):
         """Set result image"""
         pixmap = self.numpy_to_pixmap(image)
         self.current_result_pixmap = pixmap
         
-        if ENHANCED_VIEWER_AVAILABLE and hasattr(self.single_viewer, 'set_image'):
-            self.single_viewer.set_image(pixmap)
-        else:
-            self.single_viewer.setPixmap(pixmap.scaled(self.single_viewer.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        # Enable result tab and switch to it to show the result
+        self.result_tab_btn.setEnabled(True)
+        self.show_image_tab('result')
         
         if ENHANCED_VIEWER_AVAILABLE and self.comparison_viewer:
             self.comparison_viewer.set_result_image(pixmap)
@@ -744,6 +874,26 @@ class EnhancedMainWindow(QMainWindow):
             q_image = QImage(image.data, width, height, bytes_per_line, QImage.Format_Grayscale8)
         
         return QPixmap.fromImage(q_image)
+    
+    def create_enhanced_mask_pixmap(self, mask_array):
+        """Create an enhanced visualization of the mask for better visibility"""
+        import cv2
+        import numpy as np
+        
+        # Create a colorized version of the mask for better visibility
+        # White areas (to be inpainted) will be shown in bright red
+        # Black areas (preserved) will be shown in dark gray
+        
+        enhanced_mask = np.zeros((mask_array.shape[0], mask_array.shape[1], 3), dtype=np.uint8)
+        
+        # Set background (preserved areas) to dark gray
+        enhanced_mask[:, :] = [64, 64, 64]  # Dark gray background
+        
+        # Set mask areas (to be inpainted) to bright red
+        mask_areas = mask_array > 127
+        enhanced_mask[mask_areas] = [255, 0, 0]  # Bright red for mask
+        
+        return self.numpy_to_pixmap(enhanced_mask)
     
     def update_image_info(self, message):
         """Update image info in status bar"""
@@ -772,6 +922,7 @@ class EnhancedMainWindow(QMainWindow):
         # Disable/enable buttons during processing
         self.load_image_btn.setEnabled(not processing)
         self.load_mask_btn.setEnabled(not processing)
+        self.create_mask_btn.setEnabled(not processing and self.current_input_image is not None)
         self.run_btn.setEnabled(not processing)
         self.research_btn.setEnabled(not processing)  # Also disable research button
         self.save_btn.setEnabled(not processing and self.current_result_pixmap is not None)
@@ -783,19 +934,31 @@ class EnhancedMainWindow(QMainWindow):
     
     def show_enhanced_progress_dialog(self):
         """Show enhanced progress dialog"""
-        if ENHANCED_PROGRESS_AVAILABLE:
-            if not self.progress_dialog:
-                self.progress_dialog = EnhancedProgressDialog("Image Inpainting", self)
-                self.progress_dialog.cancel_requested.connect(self.on_progress_cancel)
-            
-            self.progress_dialog.show()
-            self.progress_dialog.start_processing()
+        # For now, use simple status bar progress instead of complex dialog
+        # to avoid overlay issues
+        self.status_progress.setVisible(True)
+        self.status_progress.setValue(0)
+        self.set_status_message("Processing...")
+        
+        # Uncomment below to re-enable enhanced dialog after fixing
+        # if ENHANCED_PROGRESS_AVAILABLE:
+        #     if not self.progress_dialog:
+        #         self.progress_dialog = EnhancedProgressDialog("Image Inpainting", self)
+        #         self.progress_dialog.cancel_requested.connect(self.on_progress_cancel)
+        #     
+        #     self.progress_dialog.show()
+        #     self.progress_dialog.start_processing()
     
     def hide_progress_dialog(self):
         """Hide progress dialog"""
-        if self.progress_dialog:
-            self.progress_dialog.finish_processing(True)
-            QTimer.singleShot(1000, lambda: self.progress_dialog.hide())
+        # Hide simple progress bar
+        self.status_progress.setVisible(False)
+        self.set_status_message("Ready")
+        
+        # Uncomment below when re-enabling enhanced dialog
+        # if self.progress_dialog:
+        #     self.progress_dialog.finish_processing(True)
+        #     QTimer.singleShot(1000, lambda: self.progress_dialog.hide())
     
     def on_progress_cancel(self):
         """Handle progress dialog cancel"""
@@ -818,6 +981,16 @@ class EnhancedMainWindow(QMainWindow):
         self.current_input_pixmap = None
         self.current_mask_pixmap = None
         self.current_result_pixmap = None
+        self.current_input_image = None  # Clear input image for mask editor
+        self.current_mask_array = None  # Clear binary mask
+        
+        # Reset tabs - disable mask and result tabs, switch to input
+        self.mask_tab_btn.setEnabled(False)
+        self.result_tab_btn.setEnabled(False)
+        self.show_image_tab('input')
+        
+        # Disable create mask button
+        self.create_mask_btn.setEnabled(False)
         
         if ENHANCED_VIEWER_AVAILABLE and hasattr(self.single_viewer, 'set_image'):
             self.single_viewer.set_image(None)
@@ -930,6 +1103,63 @@ class EnhancedMainWindow(QMainWindow):
     def get_control_panel(self):
         """Get control panel widget"""
         return self.control_panel
+    
+    # Mask editor methods
+    def open_mask_editor(self):
+        """Open the mask editor dialog"""
+        if self.current_input_image is None:
+            self.show_warning_message("No Image", "Please load an image first before creating a mask.")
+            return
+        
+        try:
+            # Open mask editor dialog
+            mask_editor = MaskEditorDialog(self.current_input_image, self)
+            mask_editor.mask_created.connect(self.on_mask_created)
+            
+            # Show dialog
+            if mask_editor.exec() == QDialog.Accepted:
+                self.set_status_message("Mask created successfully")
+            
+        except Exception as e:
+            self.show_error_message("Mask Editor Error", f"Failed to open mask editor:\n{str(e)}")
+    
+    def on_mask_created(self, mask_array):
+        """Handle mask created from editor"""
+        try:
+            # Debug: Check mask values
+            import numpy as np
+            unique_values = np.unique(mask_array)
+            white_pixels = np.sum(mask_array == 255)
+            black_pixels = np.sum(mask_array == 0)
+            print(f"Mask created - Unique values: {unique_values}")
+            print(f"White pixels (target areas): {white_pixels}")
+            print(f"Black pixels (source areas): {black_pixels}")
+            
+            # Set the created mask
+            self.set_mask_image(mask_array)
+            
+            # Show confirmation dialog
+            reply = QMessageBox.question(
+                self,
+                "Mask Created",
+                "Your mask has been created and is now displayed in the Mask tab.\n\n"
+                "Red areas will be inpainted (what you drew), gray areas will be preserved.\n\n"
+                "Are you satisfied with this mask?",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.Yes
+            )
+            
+            if reply == QMessageBox.Yes:
+                # User is satisfied - emit signal to notify controller
+                self.create_mask_requested.emit(mask_array)
+                self.set_status_message("Custom mask created and ready for inpainting")
+            else:
+                # User wants to recreate the mask
+                self.set_status_message("Click 'Create Mask' to draw a new mask")
+                return
+            
+        except Exception as e:
+            self.show_error_message("Mask Creation Error", f"Failed to apply created mask:\n{str(e)}")
     
     # Window events
     def closeEvent(self, event):

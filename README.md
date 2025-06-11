@@ -24,8 +24,13 @@ A professional image restoration and object removal tool with advanced features 
 ### 🛠️ Advanced Tools
 
 - **Built-in Mask Creator**: Draw masks directly on your images with brush and eraser tools
+- **Enhanced Mask Preview**: See masks with clear red/gray visualization before processing
+- **Mask Confirmation Dialog**: Review and approve masks before inpainting
+- **Exhaustive Research Mode**: Automatically find optimal parameter combinations
+- **Processing Time Analytics**: Bar chart visualization of performance metrics
 - **Adjustable Brush Sizes**: Precise control with sizes from 5-100 pixels
 - **Opacity Control**: Adjust mask overlay visibility for better precision
+- **Modern Welcome Dialog**: Streamlined onboarding with responsive dark theme
 - **Comprehensive Help System**: Detailed documentation and parameter guides
 - **Keyboard Shortcuts**: Efficient workflow with extensive shortcut support
 
@@ -52,6 +57,9 @@ opencv-python>=4.5.0
 numpy>=1.20.0
 numba>=0.56.0
 numba[cuda]  # Optional, for GPU acceleration
+matplotlib>=3.5.0  # For research analytics
+seaborn>=0.11.0    # For enhanced visualization
+pandas>=1.3.0      # For data handling
 ```
 
 ## 🚀 Installation
@@ -90,8 +98,9 @@ numba[cuda]  # Optional, for GPU acceleration
    - Select your image file (PNG, JPG, BMP, TIFF supported)
 
 3. **Create or load a mask**:
-   - **Option A**: Click "✏️ Create Mask" to draw directly on your image
+   - **Option A**: Click "✏️ Create Mask" to draw directly on your image with built-in editor
    - **Option B**: Click "🎭 Load Mask" to use an existing mask file
+   - **Option C**: Use "🔬 Exhaustive Research" to automatically find optimal settings
 
 4. **Adjust parameters** (optional):
    - **Patch Size**: Controls texture analysis detail (3-21, default: 9)
@@ -120,11 +129,14 @@ The built-in mask editor allows you to create precise masks directly on your ima
 
 ### Usage Tips
 
-- Masked areas appear as red overlay on your image
-- Use smaller brush sizes for precise work
+- **White areas in mask = regions to inpaint, black areas = preserved regions**
+- **Red overlay** on image = areas that will be inpainted
+- **Gray areas** = preserved regions (clear visualization)
+- Use smaller brush sizes for precise work around edges
 - Use larger brush sizes for filling large areas quickly
 - Adjust opacity to see the underlying image clearly
-- The "Apply Mask" button is only enabled when you have drawn something
+- **Confirmation dialog** appears after mask creation for review
+- Click "Yes" if satisfied with mask, "No" to recreate it
 
 ### Keyboard Shortcuts in Mask Editor
 
@@ -135,6 +147,36 @@ The built-in mask editor allows you to create precise masks directly on your ima
 - `Ctrl+A`: Clear all mask
 - `Enter`: Apply mask
 - `Escape`: Cancel mask editor
+
+## 🔬 Exhaustive Research Mode
+
+The application includes an advanced research mode that automatically finds optimal parameter combinations:
+
+### How It Works
+
+1. **Click "🔬 Exhaustive Research"** after loading image and mask
+2. **Configure test parameters**:
+   - Patch sizes to test (e.g., 5, 7, 9, 11, 13)
+   - P-values to test (e.g., 1.0, 1.5, 2.0, 2.5)
+   - Implementation types (CPU, GPU, or both)
+3. **Automatic processing**: Tests all combinations systematically
+4. **Performance visualization**: Bar chart showing processing times
+5. **Results analysis**: Compare quality and speed of different settings
+
+### Features
+
+- **Batch Processing**: Tests multiple parameter combinations automatically
+- **Time Tracking**: Measures processing time for each combination
+- **Visual Analytics**: Bar chart with GPU (blue) vs CPU (red) performance
+- **Export Options**: Save charts as PNG, PDF, or SVG formats
+- **Best Settings Identification**: Helps find optimal parameters for your specific use case
+
+### Usage Tips
+
+- Start with fewer combinations for initial testing
+- GPU implementation typically 10-20x faster than CPU
+- Smaller patch sizes process faster but may produce different quality
+- Use this mode to find the sweet spot between quality and speed
 
 ## ⌨️ Keyboard Shortcuts
 
@@ -253,35 +295,47 @@ For more detailed troubleshooting, press `F1` in the application to access the c
 
 ## 📝 Recent Updates
 
-### Version 1.1.0 - Enhanced Edition
+### Version 1.2.0 - Professional Edition
 
 #### 🎨 User Interface Improvements
 
-- **Dark Theme**: Complete dark theme implementation for better image visibility
-- **Interactive Mask Editor**: Built-in drawing tools for creating custom masks
-- **Tabbed Interface**: Clean organization of input, mask, and result images
-- **Modern Styling**: Professional appearance with improved visual hierarchy
+- **Enhanced Mask Preview System**: Red/gray visualization for clear mask identification
+- **Tabbed Image Interface**: Input, Mask, and Result tabs with smart enable/disable
+- **Modern Welcome Dialog**: Streamlined dark theme onboarding experience
+- **Mask Confirmation Dialog**: Review masks before processing with clear visualization
+- **Responsive Design**: Welcome dialog adapts to different screen sizes
 
 #### 🛠️ New Features
 
-- **Mask Creation Tools**: Brush and eraser tools with adjustable sizes
-- **Comprehensive Help System**: Detailed documentation with multiple sections
-- **Enhanced Error Handling**: User-friendly error messages and recovery
-- **Settings Persistence**: Remembers preferences and recent files
+- **Exhaustive Research Mode**: Automatically test multiple parameter combinations
+- **Performance Analytics**: Interactive bar charts showing processing times
+- **Chart Export Options**: Save performance data as PNG, PDF, or SVG
+- **Enhanced Mask Creation**: Built-in editor with confirmation workflow
+- **Real-time Mask Preview**: See exactly what will be inpainted vs preserved
 
 #### 🏗️ Technical Improvements
 
-- **Modular Architecture**: Clean separation of concerns for maintainability
-- **Memory Management**: Intelligent handling of large images
-- **Performance Optimizations**: Improved processing efficiency
-- **Cross-Platform Compatibility**: Enhanced support for different operating systems
+- **Advanced Plotting Integration**: Matplotlib and Seaborn for data visualization
+- **Improved Error Handling**: Fixed QTextCursor compatibility issues
+- **Memory Management**: Better handling of large images and batch processing
+- **Progress Dialog Enhancement**: Cleaner status reporting during processing
 
 #### 🔧 Quality of Life
 
-- **Keyboard Shortcuts**: Extensive shortcut support for efficient workflow
-- **Parameter Tooltips**: Helpful hints for optimal parameter selection
-- **Real-time Feedback**: Progress indicators and status updates
-- **Improved File Handling**: Better support for various image formats
+- **Automatic Tab Switching**: Smart navigation to relevant image views
+- **Welcome Dialog Control**: Option to disable welcome screen permanently
+- **Parameter Research**: Find optimal settings through systematic testing
+- **Visual Feedback**: Clear indication of mask vs preserved areas
+- **Professional Workflow**: Complete mask creation and approval process
+
+### Version 1.1.0 - Enhanced Edition
+
+#### Legacy Features
+
+- **Dark Theme**: Complete dark theme implementation for better image visibility
+- **Interactive Mask Editor**: Built-in drawing tools for creating custom masks
+- **Modular Architecture**: Clean separation of concerns for maintainability
+- **Cross-Platform Compatibility**: Enhanced support for different operating systems
 
 ## 🤝 Contributing
 

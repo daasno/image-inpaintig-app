@@ -412,8 +412,9 @@ class EnhancedProgressDialog(QDialog):
         self.details_text.append(formatted_detail)
         
         # Auto-scroll to bottom
+        from PySide6.QtGui import QTextCursor
         cursor = self.details_text.textCursor()
-        cursor.movePosition(cursor.End)
+        cursor.movePosition(QTextCursor.End)
         self.details_text.setTextCursor(cursor)
     
     def start_processing(self, total_pixels=0):
