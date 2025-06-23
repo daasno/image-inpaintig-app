@@ -1,6 +1,6 @@
-# Image Inpainting Application - Enhanced Edition
+# Image Inpainting Application - Professional Edition with Batch Processing
 
-A professional image restoration and object removal tool with advanced features and modern UI.
+A professional image restoration and object removal tool with advanced features, modern UI, and powerful batch processing capabilities.
 
 ![Application Screenshot](logo.png)
 
@@ -9,20 +9,25 @@ A professional image restoration and object removal tool with advanced features 
 ### Core Functionality
 
 - **Advanced Image Inpainting**: Remove unwanted objects or restore damaged areas in images
+- **Dual Processing Modes**: Single image and batch processing support
 - **Dual Implementation**: CPU and GPU (CUDA) acceleration support
 - **Multiple Algorithms**: Optimized patch-based inpainting with configurable parameters
 - **High-Quality Results**: Professional-grade image restoration capabilities
+- **Batch Processing**: Process multiple image-mask pairs automatically with parallel processing
 
 ### 🎨 User Interface & Experience
 
 - **Modern Dark Theme**: Eye-friendly dark interface with excellent image visibility
+- **Dual Mode Interface**: Tabbed interface for single image and batch processing modes
 - **Interactive Mask Editor**: Built-in drawing tools for creating custom masks
 - **Tabbed Image Viewer**: Switch between input, mask, and result images
 - **Real-time Preview**: See mask overlays while drawing
 - **Responsive Design**: Adaptive layout that works on different screen sizes
+- **Batch Management Panel**: Comprehensive controls for folder selection and batch operations
 
 ### 🛠️ Advanced Tools
 
+#### Single Image Mode
 - **Built-in Mask Creator**: Draw masks directly on your images with brush and eraser tools
 - **Enhanced Mask Preview**: See masks with clear red/gray visualization before processing
 - **Mask Confirmation Dialog**: Review and approve masks before inpainting
@@ -30,25 +35,34 @@ A professional image restoration and object removal tool with advanced features 
 - **Processing Time Analytics**: Bar chart visualization of performance metrics
 - **Adjustable Brush Sizes**: Precise control with sizes from 5-100 pixels
 - **Opacity Control**: Adjust mask overlay visibility for better precision
-- **Modern Welcome Dialog**: Streamlined onboarding with responsive dark theme
-- **Comprehensive Help System**: Detailed documentation and parameter guides
-- **Keyboard Shortcuts**: Efficient workflow with extensive shortcut support
+
+#### Batch Processing Mode
+- **Automatic File Matching**: Smart pairing of image and mask files based on naming patterns
+- **Folder-based Organization**: Select separate folders for images, masks, and results
+- **Real-time Progress Tracking**: Monitor batch processing with detailed progress indicators
+- **Parallel Processing**: Efficient multi-threaded batch operations
+- **Error Handling**: Comprehensive validation and error reporting for each pair
+- **Batch Statistics**: Detailed summary of processing results and performance
+- **Flexible File Naming**: Supports various naming conventions (img1.jpg, mask1.png, etc.)
 
 ### 🔧 Technical Features
 
 - **Modular Architecture**: Clean, maintainable codebase with separation of concerns
 - **Memory Management**: Intelligent handling of large images with safety limits
-- **Error Handling**: Robust error recovery and user-friendly error messages
+- **Enhanced Error Handling**: Robust error recovery and user-friendly error messages
 - **Settings Persistence**: Remembers your preferences and recent files
 - **Cross-Platform**: Works on Windows, macOS, and Linux
+- **Thread-Safe Processing**: Safe concurrent operations for batch processing
+- **Comprehensive Logging**: Detailed logging for debugging and monitoring
 
 ## 📋 Requirements
 
 ### System Requirements
 
 - Python 3.8 or higher
-- 4GB RAM minimum (8GB recommended for large images)
+- 4GB RAM minimum
 - For GPU acceleration: NVIDIA GPU with CUDA support
+- Storage space for input, mask, and result images (batch processing)
 
 ### Dependencies
 ```
@@ -88,6 +102,8 @@ pandas>=1.3.0      # For data handling
 
 ## 🎯 Quick Start
 
+### Single Image Mode
+
 1. **Launch the application**:
    ```bash
    python main.py
@@ -114,6 +130,35 @@ pandas>=1.3.0      # For data handling
 6. **Save result**:
    - Click "💾 Save" or press `Ctrl+S`
    - Choose your output location and format
+
+### Batch Processing Mode
+
+1. **Launch the batch-enabled application**:
+   ```bash
+   python main_batch.py
+   ```
+
+2. **Switch to Batch Processing tab** or press `Ctrl+2`
+
+3. **Set up folder structure**:
+   - **Images Folder**: Contains your input images (img1.jpg, img2.png, etc.)
+   - **Masks Folder**: Contains corresponding masks (mask1.jpg, mask2.png, etc.)
+   - **Results Folder**: Where processed images will be saved
+
+4. **File naming convention**:
+   - Images: `img1.jpg`, `img2.png`, `img15.jpeg`, etc.
+   - Masks: `mask1.jpg`, `mask2.png`, `mask15.jpeg`, etc.
+   - Results: `result1.jpg`, `result2.jpg`, etc. (automatically generated)
+
+5. **Configure batch settings**:
+   - **Patch Size**: Apply to all images in batch
+   - **P-Value**: Distance metric for all processing
+   - **Implementation**: CPU or GPU for batch processing
+
+6. **Start batch processing**:
+   - Click "▶️ Start Batch Processing" or press `Ctrl+B`
+   - Monitor progress in real-time
+   - View detailed statistics upon completion
 
 ## 🎨 Using the Mask Editor
 
@@ -147,6 +192,46 @@ The built-in mask editor allows you to create precise masks directly on your ima
 - `Ctrl+A`: Clear all mask
 - `Enter`: Apply mask
 - `Escape`: Cancel mask editor
+
+## 📁 Batch Processing Guide
+
+### Setting Up Batch Processing
+
+1. **Organize your files** in separate folders:
+   ```
+   project/
+   ├── images/          # Input images
+   │   ├── img1.jpg
+   │   ├── img2.png
+   │   └── img3.jpeg
+   ├── masks/           # Corresponding masks
+   │   ├── mask1.jpg
+   │   ├── mask2.png
+   │   └── mask3.jpeg
+   └── results/         # Output folder (can be empty)
+   ```
+
+2. **File naming requirements**:
+   - Images must start with "img" followed by a number
+   - Masks must start with "mask" followed by the same number
+   - Extensions can be mixed (.jpg, .png, .jpeg, .bmp, .tiff)
+   - Examples: `img1.jpg` ↔ `mask1.png`, `img25.jpeg` ↔ `mask25.jpg`
+
+3. **Batch processing features**:
+   - **Automatic matching**: Files are paired by number automatically
+   - **Validation**: Each pair is validated before processing
+   - **Progress tracking**: Real-time progress with current pair information
+   - **Error handling**: Failed pairs are logged, processing continues
+   - **Summary report**: Detailed results at completion
+
+### Batch Processing Tips
+
+- **Use consistent naming**: Follow the img{N}/mask{N} pattern
+- **Check file formats**: Ensure all images are in supported formats
+- **Verify dimensions**: Each image and its corresponding mask must have matching dimensions
+- **Monitor progress**: Use the progress panel to track processing status
+- **Review results**: Check the summary report for any failed pairs
+- **GPU acceleration**: Use GPU implementation for faster batch processing
 
 ## 🔬 Exhaustive Research Mode
 
@@ -190,12 +275,13 @@ The application includes an advanced research mode that automatically finds opti
 ### Processing
 
 - `F5`: Run Inpainting
+- `Ctrl+B`: Start Batch Processing
 - `Ctrl+R`: Reset All
 
 ### View Controls
 
-- `Ctrl+1`: Single View Mode
-- `Ctrl+2`: Side by Side View
+- `Ctrl+1`: Single Image Mode
+- `Ctrl+2`: Batch Processing Mode
 - `Ctrl+=`: Zoom In
 - `Ctrl+-`: Zoom Out
 - `Ctrl+0`: Zoom to Fit
@@ -228,24 +314,32 @@ Controls the distance metric used for patch matching:
 
 ## 🏗️ Architecture
 
-The application follows a clean modular architecture:
+The application follows a clean modular architecture with batch processing support:
 
 ```
-├── main.py                 # Application entry point
-├── config/                 # Configuration and settings
-│   └── settings.py
-├── models/                 # Data models and business logic
-│   ├── image_data.py
-│   └── inpaint_worker.py
-├── views/                  # UI components
-│   ├── main_window_simple.py
+├── main.py                    # Single image mode entry point
+├── main_batch.py              # Batch processing mode entry point
+├── config/                    # Configuration and settings
+│   ├── settings.py
+│   ├── logging_config.py
+│   └── memory_manager.py
+├── models/                    # Data models and business logic
+│   ├── image_data.py          # Single image data model
+│   ├── batch_data.py          # Batch processing data model
+│   ├── inpaint_worker.py      # Single image worker
+│   └── batch_worker.py        # Batch processing worker
+├── views/                     # UI components
+│   ├── main_window.py         # Single image main window
+│   ├── main_window_batch.py   # Batch-enabled main window
 │   └── widgets/
-│       ├── control_panel.py
-│       ├── image_label.py
-│       ├── mask_editor.py
-│       └── help_dialog.py
-└── controllers/            # Application logic coordination
-    └── app_controller.py
+│       ├── control_panel.py   # Processing controls
+│       ├── batch_panel.py     # Batch processing controls
+│       ├── image_label.py     # Image display widget
+│       ├── mask_editor.py     # Mask creation tool
+│       └── help_dialog.py     # Help system
+└── controllers/               # Application logic coordination
+    ├── app_controller.py      # Single image controller
+    └── batch_controller.py    # Batch processing controller
 ```
 
 For detailed architecture information, see [README_ARCHITECTURE.md](README_ARCHITECTURE.md).
@@ -291,9 +385,53 @@ The application features a modern dark theme designed for:
 - Close other applications to free memory
 - Switch from GPU to CPU implementation
 
+**Batch Processing Issues**
+
+- **Files not matching**: Check file naming convention (img{N}.ext ↔ mask{N}.ext)
+- **Dimension mismatch**: Ensure image and mask have same dimensions
+- **Permission errors**: Verify write access to results folder
+- **Large batch processing**: Use GPU implementation and ensure sufficient RAM
+- **Mixed file formats**: Supported but ensure all files are valid images
+
 For more detailed troubleshooting, press `F1` in the application to access the comprehensive help system.
 
 ## 📝 Recent Updates
+
+### Version 1.3.0 - Batch Processing Edition
+
+#### 🆕 Major New Features
+
+- **Batch Processing Mode**: Complete batch processing system for multiple image pairs
+- **Dual Mode Interface**: Tabbed interface supporting both single and batch operations
+- **Automatic File Matching**: Smart pairing based on filename patterns (img{N} ↔ mask{N})
+- **Parallel Processing**: Multi-threaded batch operations with progress tracking
+- **Comprehensive Batch Management**: Folder selection, validation, and result organization
+- **New Entry Points**: Separate `main_batch.py` for batch-focused workflows
+
+#### 🎯 Batch Processing Features
+
+- **Folder-based Organization**: Separate input folders for images, masks, and results
+- **Real-time Progress**: Live progress tracking with current pair information
+- **Error Handling**: Individual pair validation with detailed error reporting
+- **Batch Statistics**: Comprehensive summary reports upon completion
+- **Flexible Naming**: Support for various file extensions and numbering schemes
+- **Memory Efficient**: Optimized processing for large batch operations
+
+#### 🏗️ Architecture Enhancements
+
+- **New Models**: `BatchData` class for batch operation management
+- **New Workers**: `BatchInpaintWorker` for threaded batch processing
+- **New Controllers**: `BatchAppController` for enhanced application logic
+- **New UI Components**: `BatchPanel` widget for batch operation controls
+- **Enhanced Main Window**: `BatchEnabledMainWindow` with dual-mode support
+
+#### 🔧 Technical Improvements
+
+- **Modular Design**: Clean separation between single and batch processing logic
+- **Thread Safety**: Safe concurrent operations for batch processing
+- **Enhanced Error Handling**: Robust validation and error recovery for batch operations
+- **Improved Logging**: Detailed logging for batch processing monitoring
+- **Memory Management**: Optimized memory usage for large batch operations
 
 ### Version 1.2.0 - Professional Edition
 

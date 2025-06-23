@@ -13,6 +13,7 @@ from config.settings import AppSettings
 from .widgets.image_label import ImageLabel
 from .widgets.control_panel import ControlPanel
 from .widgets.mask_editor import MaskEditorDialog
+from .widgets.batch_panel import BatchPanel
 
 # Enhanced widgets - import only what exists
 try:
@@ -51,6 +52,10 @@ class EnhancedMainWindow(QMainWindow):
     run_inpainting_requested = Signal()
     reset_requested = Signal()
     exhaustive_research_requested = Signal()  # New signal for exhaustive research
+    
+    # Batch processing signals
+    batch_processing_requested = Signal()
+    batch_stop_requested = Signal()
     
     # UX enhancement signals
     show_welcome_requested = Signal()

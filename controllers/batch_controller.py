@@ -1,17 +1,17 @@
 """
-Main application controller coordinating between UI and business logic
+Enhanced application controller with batch processing support
 """
 import os
 from PySide6.QtWidgets import QFileDialog
-from PySide6.QtCore import QObject, Slot
+from PySide6.QtCore import QObject, Slot, QTimer
 
 from config.settings import AppSettings, AppConstants
-from models import ImageData, InpaintWorker
-from views import MainWindow
+from models import ImageData, InpaintWorker, BatchData, BatchInpaintWorker
+from views.main_window_batch import BatchEnabledMainWindow
 
 
-class AppController(QObject):
-    """Main application controller"""
+class BatchAppController(QObject):
+    """Enhanced application controller supporting both single and batch processing"""
     
     def __init__(self):
         super().__init__()
@@ -19,14 +19,16 @@ class AppController(QObject):
         # Load settings
         self.settings = AppSettings.load()
         
-        # Initialize data model
-        self.image_data = ImageData()
+        # Initialize data models
+        self.image_data = ImageData()  # For single image processing
+        self.batch_data = BatchData()  # For batch processing
         
         # Initialize UI
-        self.main_window = MainWindow()
+        self.main_window = BatchEnabledMainWindow()
         
-        # Worker thread
+        # Worker threads
         self.inpaint_worker = None
+        self.batch_worker = None
         
         # Connect signals
         self.connect_signals()
@@ -36,7 +38,7 @@ class AppController(QObject):
     
     def connect_signals(self):
         """Connect UI signals to controller methods"""
-        # Main window signals
+        # Single image processing signals
         self.main_window.load_image_requested.connect(self.load_image)
         self.main_window.load_mask_requested.connect(self.load_mask)
         self.main_window.create_mask_requested.connect(self.on_mask_created)
@@ -45,11 +47,22 @@ class AppController(QObject):
         self.main_window.reset_requested.connect(self.reset)
         self.main_window.exhaustive_research_requested.connect(self.open_exhaustive_research)
         
-        # Control panel signals
+        # Batch processing signals
+        self.main_window.batch_processing_requested.connect(self.start_batch_processing)
+        self.main_window.batch_stop_requested.connect(self.stop_batch_processing)
+        
+        # Control panel signals (for single image mode)
         control_panel = self.main_window.get_control_panel()
         control_panel.implementation_changed.connect(self.on_implementation_changed)
         control_panel.patch_size_changed.connect(self.on_patch_size_changed)
         control_panel.p_value_changed.connect(self.on_p_value_changed)
+        
+        # Batch panel signals
+        batch_panel = self.main_window.get_batch_panel()
+        batch_panel.folders_changed.connect(self.on_batch_folders_changed)
+        
+        # Get batch data reference from the panel
+        self.batch_data = batch_panel.get_batch_data()
     
     def initialize_ui(self):
         """Initialize UI with settings"""
@@ -67,7 +80,16 @@ class AppController(QObject):
         self.update_ui_state()
     
     def update_ui_state(self):
-        """Update UI state based on current data"""
+        """Update UI state based on current data and mode"""
+        current_mode = self.main_window.get_current_mode()
+        
+        if current_mode == "single":
+            self.update_single_mode_ui()
+        elif current_mode == "batch":
+            self.update_batch_mode_ui()
+    
+    def update_single_mode_ui(self):
+        """Update UI state for single image mode"""
         # Update run button state
         can_run = self.image_data.is_ready_for_processing
         self.main_window.set_run_button_enabled(can_run)
@@ -86,6 +108,18 @@ class AppController(QObject):
         else:
             self.main_window.set_status_message("Ready")
     
+    def update_batch_mode_ui(self):
+        """Update UI state for batch mode"""
+        batch_panel = self.main_window.get_batch_panel()
+        batch_panel.update_ui_state()
+        
+        # Update status based on batch data
+        if self.batch_data.total_pairs > 0:
+            self.main_window.set_status_message(f"Batch mode: {self.batch_data.total_pairs} pairs ready")
+        else:
+            self.main_window.set_status_message("Batch mode: Select folders to find image pairs")
+    
+    # Single Image Processing Methods
     @Slot()
     def load_image(self):
         """Load input image"""
@@ -205,59 +239,34 @@ class AppController(QObject):
                 
                 # Update status
                 filename = os.path.basename(file_path)
-                self.main_window.set_status_message(f"Result saved to: {filename}")
+                self.main_window.set_status_message(f"Saved result: {filename}")
                 
             else:
                 self.main_window.show_error_message(
                     "Error",
-                    "Failed to save the result image. Please check the file path and permissions."
+                    "Failed to save the result image. Please check the file path and try again."
                 )
     
     @Slot()
     def run_inpainting(self):
-        """Start the inpainting process"""
-        # Validate images
-        is_valid, error_message = self.image_data.validate_images()
-        if not is_valid:
-            self.main_window.show_warning_message("Warning", error_message)
+        """Run inpainting process for single image"""
+        if not self.image_data.is_ready_for_processing:
+            self.main_window.show_warning_message("Warning", "Please load both image and mask first")
             return
         
-        # Get parameters from control panel
+        # Get current settings
         control_panel = self.main_window.get_control_panel()
-        is_valid, error_message = control_panel.validate_parameters()
-        if not is_valid:
-            self.main_window.show_warning_message("Parameter Error", error_message)
-            return
+        patch_size = control_panel.get_current_patch_size()
+        p_value = control_panel.get_current_p_value()
+        implementation = control_panel.get_current_implementation()
         
-        parameters = control_panel.get_parameters()
-        
-        # Check implementation availability at runtime
-        implementation = parameters['implementation']
-        if implementation == "GPU" and not InpaintWorker.check_gpu_availability():
-            if self.main_window.show_question_dialog(
-                "GPU Not Available",
-                "GPU implementation is not available. Switch to CPU implementation?"
-            ):
-                control_panel.set_implementation("CPU")
-                implementation = "CPU"
-            else:
-                return
-        
-        # Set UI to processing state
-        self.main_window.set_processing_state(True)
-        self.main_window.set_status_message("Starting inpainting process...")
-        
-        # Get parameters from UI
-        control_panel = self.main_window.get_control_panel()
-        params = control_panel.get_parameters()
-        
-        # Create and start the worker
+        # Create and start worker
         self.inpaint_worker = InpaintWorker(
-            implementation=params['implementation'],
+            implementation=implementation,
             image=self.image_data.input_image,
             mask=self.image_data.mask_image,
-            patch_size=params['patch_size'],
-            p_value=params['p_value']
+            patch_size=patch_size,
+            p_value=p_value
         )
         
         # Connect worker signals
@@ -266,150 +275,223 @@ class AppController(QObject):
         self.inpaint_worker.error_occurred.connect(self.on_process_error)
         self.inpaint_worker.status_update.connect(self.on_status_update)
         
-        # Start the worker
+        # Update UI state
+        self.main_window.set_processing_state(True)
+        self.main_window.set_status_message("Processing...")
+        
+        # Start processing
         self.inpaint_worker.start()
     
     @Slot()
     def reset(self):
-        """Reset the application state"""
-        # Stop any running worker
+        """Reset application state"""
+        # Stop any running workers
         if self.inpaint_worker and self.inpaint_worker.isRunning():
-            if self.main_window.show_question_dialog(
-                "Confirm Reset",
-                "Inpainting is currently running. Do you want to stop it and reset?"
-            ):
-                self.inpaint_worker.terminate()
-                self.inpaint_worker.wait()
-            else:
-                return
+            self.inpaint_worker.quit()
+            self.inpaint_worker.wait()
         
-        # Clear data
-        self.image_data.reset()
+        # Reset data
+        self.image_data = ImageData()
         
         # Reset UI
-        self.main_window.reset_ui()
         self.main_window.set_processing_state(False)
+        self.main_window.set_status_message("Reset complete - ready for new images")
         
-        # Update state
+        # Update UI state
         self.update_ui_state()
     
     @Slot()
     def open_exhaustive_research(self):
-        """Open the exhaustive research dialog"""
-        # Validate that we have images loaded
-        if not self.image_data.has_input_image:
-            self.main_window.show_warning_message(
-                "No Input Image",
-                "Please load an input image before starting exhaustive research."
-            )
+        """Open exhaustive research dialog"""
+        # Import here to avoid circular imports
+        from views.dialogs.exhaustive_research_dialog import ExhaustiveResearchDialog
+        
+        if not self.image_data.is_ready_for_processing:
+            self.main_window.show_warning_message("Warning", "Please load both image and mask first")
             return
         
-        if not self.image_data.has_mask_image:
-            self.main_window.show_warning_message(
-                "No Mask Image",
-                "Please load a mask image before starting exhaustive research."
-            )
-            return
-        
-        # Import the dialog (we'll create this next)
-        try:
-            from views.dialogs.exhaustive_research_dialog import ExhaustiveResearchDialog
-            
-            # Create and show the dialog
-            dialog = ExhaustiveResearchDialog(
-                self.main_window,
-                self.image_data.input_image,
-                self.image_data.mask_image
-            )
-            dialog.exec()
-            
-        except ImportError:
-            # If the dialog doesn't exist yet, show a message
-            self.main_window.show_info_message(
-                "Coming Soon",
-                "The exhaustive research feature is being implemented. Stay tuned!"
-            )
+        dialog = ExhaustiveResearchDialog(self.main_window, self.image_data)
+        dialog.exec()
     
-    # Worker thread signal handlers
+    # Batch Processing Methods
+    @Slot()
+    def start_batch_processing(self):
+        """Start batch processing"""
+        if not self.batch_data.is_ready_for_processing:
+            self.main_window.show_warning_message(
+                "Warning", 
+                "Please select folders with matching image and mask pairs first"
+            )
+            return
+        
+        # Get current settings for batch processing from batch panel
+        batch_panel = self.main_window.get_batch_panel()
+        settings = batch_panel.get_parameters()
+        
+        # Log the settings being used
+        batch_panel.add_result_log(f"Using parameters: {settings['implementation']} implementation, "
+                                 f"patch size {settings['patch_size']}, p-value {settings['p_value']}")
+        
+        # Create and start batch worker
+        self.batch_worker = BatchInpaintWorker(self.batch_data, settings)
+        
+        # Connect batch worker signals
+        self.batch_worker.progress_updated.connect(self.on_batch_progress_update)
+        self.batch_worker.pair_started.connect(self.on_batch_pair_started)
+        self.batch_worker.pair_completed.connect(self.on_batch_pair_completed)
+        self.batch_worker.batch_completed.connect(self.on_batch_completed)
+        self.batch_worker.error_occurred.connect(self.on_batch_error)
+        
+        # Update UI state
+        self.main_window.set_processing_state(True)
+        batch_panel.clear_results_log()
+        batch_panel.add_result_log("Starting batch processing...")
+        
+        # Start processing
+        self.batch_worker.start()
+    
+    @Slot()
+    def stop_batch_processing(self):
+        """Stop batch processing"""
+        if self.batch_worker and self.batch_worker.isRunning():
+            self.batch_worker.stop_processing()
+            batch_panel = self.main_window.get_batch_panel()
+            batch_panel.add_result_log("Stopping batch processing...", is_error=True)
+    
+    @Slot()
+    def on_batch_folders_changed(self):
+        """Handle batch folders changed"""
+        self.update_batch_mode_ui()
+    
+    # Signal handlers for single image processing
     @Slot(int)
     def on_progress_update(self, value):
-        """Handle progress updates from worker"""
+        """Handle progress update"""
         self.main_window.update_progress(value)
     
     @Slot(object)  # np.ndarray
     def on_process_complete(self, result_image):
         """Handle process completion"""
         try:
-            # Set result image
-            self.image_data.set_result_image(result_image)
-            self.main_window.set_result_image(result_image)
+            # Set result in data model
+            self.image_data.result_image = result_image
             
-            # Update UI state
+            # Update UI
+            self.main_window.set_result_image(result_image)
             self.main_window.set_processing_state(False)
             self.main_window.set_status_message("Inpainting completed successfully")
+            
+            # Update UI state
             self.update_ui_state()
             
-            # Show success message
-            self.main_window.show_info_message("Success", "Inpainting completed successfully!")
-            
         except Exception as e:
-            self.on_process_error(f"Error processing result: {str(e)}")
+            self.main_window.show_error_message("Error", f"Failed to display result: {str(e)}")
+        
+        finally:
+            # Clean up worker
+            if self.inpaint_worker:
+                self.inpaint_worker.deleteLater()
+                self.inpaint_worker = None
     
     @Slot(str)
     def on_process_error(self, error_message):
-        """Handle process errors"""
-        # Update UI state
+        """Handle process error"""
         self.main_window.set_processing_state(False)
-        self.main_window.set_status_message("Inpainting failed")
+        self.main_window.show_error_message("Processing Error", error_message)
         
-        # Show error message
-        if "CUDA" in error_message:
-            self.main_window.show_error_message(
-                "CUDA Error",
-                f"{error_message}\n\nTry using the CPU implementation instead."
-            )
-        else:
-            self.main_window.show_error_message("Error", f"Inpainting failed: {error_message}")
+        # Clean up worker
+        if self.inpaint_worker:
+            self.inpaint_worker.deleteLater()
+            self.inpaint_worker = None
     
     @Slot(str)
     def on_status_update(self, message):
-        """Handle status updates from worker"""
+        """Handle status update"""
         self.main_window.set_status_message(message)
     
-    # Control panel signal handlers
+    # Signal handlers for batch processing
+    @Slot(int, int)
+    def on_batch_progress_update(self, current, total):
+        """Handle batch progress update"""
+        batch_panel = self.main_window.get_batch_panel()
+        batch_panel.update_progress(current, total)
+    
+    @Slot(str, str)
+    def on_batch_pair_started(self, image_filename, mask_filename):
+        """Handle batch pair started"""
+        batch_panel = self.main_window.get_batch_panel()
+        batch_panel.add_result_log(f"Processing: {image_filename} with {mask_filename}")
+    
+    @Slot(str, bool, str)
+    def on_batch_pair_completed(self, result_filename, success, message):
+        """Handle batch pair completed"""
+        batch_panel = self.main_window.get_batch_panel()
+        if success:
+            batch_panel.add_result_log(f"✅ Completed: {result_filename} - {message}")
+        else:
+            batch_panel.add_result_log(f"❌ Failed: {result_filename} - {message}", is_error=True)
+    
+    @Slot(dict)
+    def on_batch_completed(self, summary):
+        """Handle batch processing completion"""
+        batch_panel = self.main_window.get_batch_panel()
+        self.main_window.set_processing_state(False)
+        
+        # Show summary
+        total = summary['total_pairs']
+        successful = summary['successful']
+        failed = summary['failed']
+        
+        batch_panel.add_result_log(f"\n📊 Batch Processing Complete!")
+        batch_panel.add_result_log(f"Total pairs: {total}")
+        batch_panel.add_result_log(f"Successful: {successful}")
+        batch_panel.add_result_log(f"Failed: {failed}")
+        
+        if failed > 0:
+            batch_panel.add_result_log(f"Success rate: {(successful/total)*100:.1f}%")
+        
+        self.main_window.set_status_message(f"Batch processing complete: {successful}/{total} successful")
+        
+        # Clean up worker
+        if self.batch_worker:
+            self.batch_worker.deleteLater()
+            self.batch_worker = None
+    
+    @Slot(str)
+    def on_batch_error(self, error_message):
+        """Handle batch processing error"""
+        batch_panel = self.main_window.get_batch_panel()
+        batch_panel.add_result_log(f"❌ Batch Error: {error_message}", is_error=True)
+        self.main_window.set_processing_state(False)
+        
+        # Clean up worker
+        if self.batch_worker:
+            self.batch_worker.deleteLater()
+            self.batch_worker = None
+    
+    # Settings handlers
     @Slot(str)
     def on_implementation_changed(self, implementation):
-        """Handle implementation changes"""
+        """Handle implementation change"""
         self.settings.preferred_implementation = implementation
         self.settings.save()
     
     @Slot(int)
     def on_patch_size_changed(self, patch_size):
-        """Handle patch size changes"""
+        """Handle patch size change"""
         self.settings.default_patch_size = patch_size
         self.settings.save()
     
     @Slot(float)
     def on_p_value_changed(self, p_value):
-        """Handle p-value changes"""
+        """Handle p-value change"""
         self.settings.default_p_value = p_value
         self.settings.save()
     
-    # Public interface
     def show(self):
         """Show the main window"""
         self.main_window.show()
     
     def close(self):
         """Close the application"""
-        # Save current window size
-        self.settings.window_width = self.main_window.width()
-        self.settings.window_height = self.main_window.height()
-        self.settings.save()
-        
-        # Stop any running worker
-        if self.inpaint_worker and self.inpaint_worker.isRunning():
-            self.inpaint_worker.terminate()
-            self.inpaint_worker.wait()
-        
         self.main_window.close() 

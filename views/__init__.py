@@ -3,8 +3,9 @@ Views package - UI components and widgets
 Enhanced with UX/UI improvements
 """
 
-# Main window - using enhanced version
-from .main_window import EnhancedMainWindow as MainWindow
+# Main window - using batch-enabled version
+from .main_window_batch import BatchEnabledMainWindow as MainWindow
+from .main_window import EnhancedMainWindow
 
 # Original widgets
 from .widgets.image_label import ImageLabel
@@ -33,6 +34,12 @@ except ImportError:
     pass
 
 try:
+    from .widgets.batch_panel import BatchPanel
+    enhanced_widgets.append('BatchPanel')
+except ImportError:
+    pass
+
+try:
     from .welcome_dialog import WelcomeDialog
     enhanced_widgets.append('WelcomeDialog')
 except ImportError:
@@ -42,6 +49,7 @@ except ImportError:
 __all__ = [
     # Main interface
     'MainWindow',
+    'EnhancedMainWindow',
     
     # Core widgets
     'ImageLabel',
