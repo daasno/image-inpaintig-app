@@ -24,6 +24,24 @@ class ImagePair:
     @property
     def mask_filename(self) -> str:
         return os.path.basename(self.mask_path)
+    
+    def load_input_image(self) -> Optional[np.ndarray]:
+        """Load the input image as numpy array"""
+        try:
+            image = cv2.imread(self.image_path)
+            if image is not None:
+                return cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            return None
+        except Exception:
+            return None
+    
+    def load_mask_image(self) -> Optional[np.ndarray]:
+        """Load the mask image as numpy array"""
+        try:
+            mask = cv2.imread(self.mask_path, cv2.IMREAD_GRAYSCALE)
+            return mask
+        except Exception:
+            return None
 
 
 class BatchData:

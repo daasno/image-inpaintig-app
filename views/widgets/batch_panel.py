@@ -22,6 +22,7 @@ class BatchPanel(QWidget):
     folders_changed = Signal()
     start_batch_requested = Signal()
     stop_batch_requested = Signal()
+    exhaustive_research_requested = Signal()
     
     def __init__(self):
         super().__init__()
@@ -260,11 +261,33 @@ class BatchPanel(QWidget):
         self.stop_button.clicked.connect(self.stop_batch_requested.emit)
         self.stop_button.setEnabled(False)
         
+        # Exhaustive research button
+        self.exhaustive_button = QPushButton("🔬 Batch Exhaustive Research")
+        self.exhaustive_button.setStyleSheet("""
+            QPushButton {
+                background-color: #1976d2;
+                color: white;
+                font-weight: bold;
+                padding: 8px 16px;
+                border: none;
+                border-radius: 4px;
+            }
+            QPushButton:hover {
+                background-color: #0d47a1;
+            }
+            QPushButton:disabled {
+                background-color: #555;
+                color: #888;
+            }
+        """)
+        self.exhaustive_button.clicked.connect(self.exhaustive_research_requested.emit)
+        
         # Refresh button
         refresh_button = QPushButton("🔄 Refresh Pairs")
         refresh_button.clicked.connect(self.refresh_pairs)
         
         layout.addWidget(self.start_button)
+        layout.addWidget(self.exhaustive_button)
         layout.addWidget(self.stop_button)
         layout.addWidget(refresh_button)
         layout.addStretch()
@@ -424,10 +447,12 @@ class BatchPanel(QWidget):
         """Update UI state based on current data"""
         can_start = self.batch_data.is_ready_for_processing
         self.start_button.setEnabled(can_start)
+        self.exhaustive_button.setEnabled(can_start)
     
     def set_processing_state(self, is_processing: bool):
         """Update UI for processing state"""
         self.start_button.setEnabled(not is_processing and self.batch_data.is_ready_for_processing)
+        self.exhaustive_button.setEnabled(not is_processing and self.batch_data.is_ready_for_processing)
         self.stop_button.setEnabled(is_processing)
         self.progress_bar.setVisible(is_processing)
         

@@ -421,7 +421,7 @@ class ExhaustiveResearchDialog(QDialog):
         # Summary
         self.summary_label = QLabel()
         self.summary_label.setWordWrap(True)
-        self.summary_label.setStyleSheet("background-color: #f0f0f0; padding: 10px; border-radius: 5px;")
+        self.summary_label.setStyleSheet("background-color: #000000; color: #ffffff; padding: 10px; border-radius: 5px;")
         layout.addWidget(self.summary_label)
         
         # Start button
@@ -568,8 +568,38 @@ class ExhaustiveResearchDialog(QDialog):
         # Scroll area for results
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
+        scroll_area.setStyleSheet("""
+            QScrollArea {
+                background-color: #2b2b2b;
+                border: 1px solid #555;
+                border-radius: 4px;
+            }
+            QScrollBar:vertical {
+                background-color: #3a3a3a;
+                width: 12px;
+                border: none;
+                border-radius: 6px;
+            }
+            QScrollBar::handle:vertical {
+                background-color: #555;
+                border-radius: 6px;
+                min-height: 20px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background-color: #666;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                border: none;
+                background: none;
+            }
+        """)
         
         self.results_widget = QWidget()
+        self.results_widget.setStyleSheet("""
+            QWidget {
+                background-color: #2b2b2b;
+            }
+        """)
         self.results_layout = QGridLayout(self.results_widget)
         self.results_layout.setSpacing(10)
         

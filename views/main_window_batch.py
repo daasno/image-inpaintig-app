@@ -14,6 +14,8 @@ from PySide6.QtGui import QAction, QKeySequence, QPixmap, QIcon
 from config.settings import AppSettings
 from .main_window import EnhancedMainWindow
 from .widgets.batch_panel import BatchPanel
+from .widgets.comparison_panel import ComparisonPanel
+from controllers.comparison_controller import ComparisonController
 
 
 class BatchEnabledMainWindow(QMainWindow):
@@ -32,6 +34,9 @@ class BatchEnabledMainWindow(QMainWindow):
     batch_processing_requested = Signal()
     batch_stop_requested = Signal()
     
+    # Comparison signals
+    comparison_mode_requested = Signal()
+    
     def __init__(self):
         super().__init__()
         
@@ -39,7 +44,7 @@ class BatchEnabledMainWindow(QMainWindow):
         self.settings = AppSettings.load()
         
         # Current mode
-        self.current_mode = "single"  # "single" or "batch"
+        self.current_mode = "single"  # "single", "batch", or "comparison"
         
         self.setup_ui()
         self.setup_menus()
@@ -96,6 +101,11 @@ class BatchEnabledMainWindow(QMainWindow):
         batch_layout = QVBoxLayout(batch_container)
         batch_layout.addWidget(self.batch_panel)
         self.tab_widget.addTab(batch_container, "📁 Batch Processing")
+        
+        # Comparison tab
+        self.comparison_panel = ComparisonPanel()
+        self.comparison_controller = ComparisonController(self.comparison_panel)
+        self.tab_widget.addTab(self.comparison_panel, "📊 Comparison")
         
         # Connect tab change
         self.tab_widget.currentChanged.connect(self.on_tab_changed)
@@ -177,6 +187,11 @@ class BatchEnabledMainWindow(QMainWindow):
         batch_tab_action.triggered.connect(lambda: self.tab_widget.setCurrentIndex(1))
         view_menu.addAction(batch_tab_action)
         
+        comparison_tab_action = QAction("&Comparison Mode", self)
+        comparison_tab_action.setShortcut("Ctrl+3")
+        comparison_tab_action.triggered.connect(lambda: self.tab_widget.setCurrentIndex(2))
+        view_menu.addAction(comparison_tab_action)
+        
         # Help menu
         help_menu = menubar.addMenu("&Help")
         
@@ -209,6 +224,9 @@ class BatchEnabledMainWindow(QMainWindow):
             self.current_mode = "batch"
             self.status_bar.showMessage("Batch processing mode")
             self.batch_panel.update_ui_state()
+        elif index == 2:
+            self.current_mode = "comparison"
+            self.status_bar.showMessage("Image comparison mode")
     
     def on_batch_folders_changed(self):
         """Handle batch folders changed"""
@@ -346,6 +364,14 @@ class BatchEnabledMainWindow(QMainWindow):
     def switch_to_batch_mode(self):
         """Switch to batch processing mode"""
         self.tab_widget.setCurrentIndex(1)
+    
+    def switch_to_comparison_mode(self):
+        """Switch to comparison mode"""
+        self.tab_widget.setCurrentIndex(2)
+    
+    def get_comparison_controller(self):
+        """Get comparison controller"""
+        return self.comparison_controller
     
     def closeEvent(self, event):
         """Handle close event"""

@@ -1,6 +1,6 @@
-# Image Inpainting Application - Professional Edition with Batch Processing
+# Image Inpainting Application - Professional Edition with Advanced Research & Comparison
 
-A professional image restoration and object removal tool with advanced features, modern UI, and powerful batch processing capabilities.
+A professional image restoration and object removal tool with advanced features, modern UI, powerful batch processing capabilities, and comprehensive quality analysis tools.
 
 ![Application Screenshot](logo.png)
 
@@ -9,21 +9,23 @@ A professional image restoration and object removal tool with advanced features,
 ### Core Functionality
 
 - **Advanced Image Inpainting**: Remove unwanted objects or restore damaged areas in images
-- **Dual Processing Modes**: Single image and batch processing support
+- **Triple Processing Modes**: Single image, batch processing, and comparison analysis support
 - **Dual Implementation**: CPU and GPU (CUDA) acceleration support
 - **Multiple Algorithms**: Optimized patch-based inpainting with configurable parameters
 - **High-Quality Results**: Professional-grade image restoration capabilities
 - **Batch Processing**: Process multiple image-mask pairs automatically with parallel processing
+- **Quality Analysis**: Comprehensive PSNR and SSIM metrics calculation and visualization
 
 ### 🎨 User Interface & Experience
 
 - **Modern Dark Theme**: Eye-friendly dark interface with excellent image visibility
-- **Dual Mode Interface**: Tabbed interface for single image and batch processing modes
+- **Triple Mode Interface**: Tabbed interface for single image, batch processing, and comparison modes
 - **Interactive Mask Editor**: Built-in drawing tools for creating custom masks
 - **Tabbed Image Viewer**: Switch between input, mask, and result images
 - **Real-time Preview**: See mask overlays while drawing
 - **Responsive Design**: Adaptive layout that works on different screen sizes
 - **Batch Management Panel**: Comprehensive controls for folder selection and batch operations
+- **Comparison Panel**: Side-by-side image comparison with quality metrics visualization
 
 ### 🛠️ Advanced Tools
 
@@ -44,6 +46,16 @@ A professional image restoration and object removal tool with advanced features,
 - **Error Handling**: Comprehensive validation and error reporting for each pair
 - **Batch Statistics**: Detailed summary of processing results and performance
 - **Flexible File Naming**: Supports various naming conventions (img1.jpg, mask1.png, etc.)
+- **Batch Exhaustive Research**: Run parameter optimization across multiple image pairs
+- **Quality Metrics**: Calculate PSNR/SSIM for all processed images in batch mode
+
+#### Comparison Mode (NEW!)
+- **Side-by-Side Comparison**: Visual comparison of original and inpainted images
+- **Quality Metrics Calculation**: Automatic PSNR and SSIM calculation
+- **SSIM Difference Visualization**: Heat map showing structural differences
+- **Quality Interpretation**: Automatic quality assessment (Excellent/Good/Fair/Poor)
+- **Comparison Reports**: Export detailed analysis reports
+- **Metrics History**: Track quality improvements across different parameter settings
 
 ### 🔧 Technical Features
 
@@ -54,6 +66,7 @@ A professional image restoration and object removal tool with advanced features,
 - **Cross-Platform**: Works on Windows, macOS, and Linux
 - **Thread-Safe Processing**: Safe concurrent operations for batch processing
 - **Comprehensive Logging**: Detailed logging for debugging and monitoring
+- **Quality Metrics Integration**: Built-in PSNR and SSIM calculation using scikit-image
 
 ## 📋 Requirements
 
@@ -74,6 +87,7 @@ numba[cuda]  # Optional, for GPU acceleration
 matplotlib>=3.5.0  # For research analytics
 seaborn>=0.11.0    # For enhanced visualization
 pandas>=1.3.0      # For data handling
+scikit-image>=0.19.0  # For quality metrics (PSNR, SSIM)
 ```
 
 ## 🚀 Installation
@@ -160,6 +174,28 @@ pandas>=1.3.0      # For data handling
    - Monitor progress in real-time
    - View detailed statistics upon completion
 
+### Comparison Mode (NEW!)
+
+1. **Launch the batch-enabled application**:
+   ```bash
+   python main_batch.py
+   ```
+
+2. **Switch to Comparison Mode tab** or press `Ctrl+3`
+
+3. **Load images for comparison**:
+   - **Original Image**: Click "📁 Load Original" to load the reference image
+   - **Inpainted Image**: Click "📁 Load Inpainted" to load the processed image
+
+4. **Calculate quality metrics**:
+   - Click "📊 Calculate Metrics" to compute PSNR and SSIM values
+   - View side-by-side comparison and SSIM difference visualization
+   - Get automatic quality interpretation
+
+5. **Export comparison results**:
+   - Click "💾 Save Comparison" to export detailed analysis report
+   - Report includes metrics, quality assessment, and image information
+
 ## 🎨 Using the Mask Editor
 
 The built-in mask editor allows you to create precise masks directly on your images:
@@ -237,7 +273,7 @@ The built-in mask editor allows you to create precise masks directly on your ima
 
 The application includes an advanced research mode that automatically finds optimal parameter combinations:
 
-### How It Works
+### Single Image Research
 
 1. **Click "🔬 Exhaustive Research"** after loading image and mask
 2. **Configure test parameters**:
@@ -263,6 +299,65 @@ The application includes an advanced research mode that automatically finds opti
 - Smaller patch sizes process faster but may produce different quality
 - Use this mode to find the sweet spot between quality and speed
 
+### Batch Exhaustive Research (NEW!)
+
+The application now supports running exhaustive parameter research across multiple image pairs:
+
+#### How It Works
+
+1. **Access via Batch Processing Mode**: Switch to batch mode and select image pairs
+2. **Configure Research Parameters**:
+   - Select patch sizes to test (e.g., 5, 7, 9, 11, 13)
+   - Choose P-values to test (e.g., 1.0, 1.5, 2.0, 2.5)
+   - Select implementation types (CPU, GPU, or both)
+   - Choose research strategy (all pairs, first N pairs, or selected pairs)
+3. **Advanced Options**:
+   - Enable quality metrics calculation (PSNR/SSIM)
+   - Set best result criteria (fastest, best PSNR, best SSIM)
+   - Configure export options (CSV results, best images)
+4. **Automated Processing**: Tests all combinations across selected image pairs
+5. **Comprehensive Results**: Detailed analysis with quality metrics and timing data
+
+#### Features
+
+- **Flexible Pair Selection**: Choose all pairs, first N pairs, or manually select specific pairs
+- **Quality Metrics Integration**: Optional PSNR/SSIM calculation for each result
+- **Multiple Optimization Criteria**: Find best results based on speed or quality
+- **Comprehensive Reporting**: Export results to CSV with detailed metrics
+- **Best Image Export**: Automatically save the best inpainting results
+- **Progress Monitoring**: Real-time progress tracking with detailed status updates
+- **Error Resilience**: Continue processing even if some combinations fail
+
+#### Usage Tips
+
+- Start with a small subset of pairs for initial parameter exploration
+- Enable metrics calculation for quality-focused research (slower but more informative)
+- Use "First N Pairs" strategy for quick parameter validation
+- Export CSV results for further analysis in spreadsheet applications
+- GPU implementation typically provides 10-20x speed improvement for batch research
+
+## 📊 Quality Metrics & Comparison
+
+### Supported Metrics
+
+The application calculates several image quality metrics:
+
+- **PSNR (Peak Signal-to-Noise Ratio)**: Measures pixel-level similarity
+  - Higher values indicate better quality
+  - Excellent: >40 dB, Good: 30-40 dB, Fair: 20-30 dB, Poor: <20 dB
+- **SSIM (Structural Similarity Index)**: Measures structural similarity
+  - Values range from 0 to 1, higher is better
+  - Excellent: >0.95, Good: 0.85-0.95, Fair: 0.7-0.85, Poor: <0.7
+- **MSE (Mean Squared Error)**: Basic pixel difference measurement
+
+### Comparison Features
+
+- **Visual Comparison**: Side-by-side image display with synchronized zooming
+- **SSIM Difference Map**: Heat map visualization showing structural differences
+- **Quality Interpretation**: Automatic assessment of inpainting quality
+- **Detailed Reports**: Comprehensive analysis including image properties and metrics
+- **Export Capabilities**: Save comparison results and visualizations
+
 ## ⌨️ Keyboard Shortcuts
 
 ### File Operations
@@ -282,6 +377,7 @@ The application includes an advanced research mode that automatically finds opti
 
 - `Ctrl+1`: Single Image Mode
 - `Ctrl+2`: Batch Processing Mode
+- `Ctrl+3`: Comparison Mode
 - `Ctrl+=`: Zoom In
 - `Ctrl+-`: Zoom Out
 - `Ctrl+0`: Zoom to Fit
@@ -314,7 +410,7 @@ Controls the distance metric used for patch matching:
 
 ## 🏗️ Architecture
 
-The application follows a clean modular architecture with batch processing support:
+The application follows a clean modular architecture with batch processing and comparison support:
 
 ```
 ├── main.py                    # Single image mode entry point
@@ -326,20 +422,28 @@ The application follows a clean modular architecture with batch processing suppo
 ├── models/                    # Data models and business logic
 │   ├── image_data.py          # Single image data model
 │   ├── batch_data.py          # Batch processing data model
+│   ├── comparison_data.py     # Comparison data model (NEW!)
+│   ├── metrics.py             # Quality metrics calculation (NEW!)
 │   ├── inpaint_worker.py      # Single image worker
-│   └── batch_worker.py        # Batch processing worker
+│   ├── batch_worker.py        # Batch processing worker
+│   └── batch_exhaustive_worker.py  # Batch exhaustive research worker (NEW!)
 ├── views/                     # UI components
 │   ├── main_window.py         # Single image main window
 │   ├── main_window_batch.py   # Batch-enabled main window
+│   ├── dialogs/
+│   │   ├── exhaustive_research_dialog.py     # Single image research
+│   │   └── batch_exhaustive_dialog.py        # Batch research (NEW!)
 │   └── widgets/
 │       ├── control_panel.py   # Processing controls
 │       ├── batch_panel.py     # Batch processing controls
+│       ├── comparison_panel.py # Image comparison widget (NEW!)
 │       ├── image_label.py     # Image display widget
 │       ├── mask_editor.py     # Mask creation tool
 │       └── help_dialog.py     # Help system
 └── controllers/               # Application logic coordination
     ├── app_controller.py      # Single image controller
-    └── batch_controller.py    # Batch processing controller
+    ├── batch_controller.py    # Batch processing controller
+    └── comparison_controller.py # Comparison controller (NEW!)
 ```
 
 For detailed architecture information, see [README_ARCHITECTURE.md](README_ARCHITECTURE.md).
@@ -393,9 +497,67 @@ The application features a modern dark theme designed for:
 - **Large batch processing**: Use GPU implementation and ensure sufficient RAM
 - **Mixed file formats**: Supported but ensure all files are valid images
 
+**Comparison Mode Issues**
+
+- **Images not displaying**: Ensure both images are in supported formats (PNG, JPG, TIFF, etc.)
+- **Metrics calculation fails**: Verify images have the same dimensions
+- **Poor quality scores**: Check if images are properly aligned and from the same source
+- **Export errors**: Ensure you have write permissions to the selected directory
+
+**Batch Exhaustive Research Issues**
+
+- **Long processing times**: Use GPU implementation and reduce parameter combinations
+- **Memory issues**: Process smaller batches or reduce image sizes
+- **Failed combinations**: Check individual error messages in the progress log
+- **Export failures**: Verify sufficient disk space and write permissions
+
 For more detailed troubleshooting, press `F1` in the application to access the comprehensive help system.
 
 ## 📝 Recent Updates
+
+### Version 1.4.0 - Advanced Research & Comparison Edition
+
+#### 🆕 Major New Features
+
+- **Comparison Mode**: Complete image comparison system with quality metrics
+- **Quality Metrics Integration**: PSNR, SSIM, and MSE calculation using scikit-image
+- **Batch Exhaustive Research**: Run parameter optimization across multiple image pairs
+- **Advanced Metrics Visualization**: SSIM difference maps and quality interpretation
+- **Comprehensive Reporting**: Export detailed comparison and research results
+
+#### 🎯 Comparison Features
+
+- **Side-by-Side Visualization**: Professional image comparison interface
+- **Quality Metrics Calculation**: Automatic PSNR and SSIM computation
+- **SSIM Difference Maps**: Heat map visualization of structural differences
+- **Quality Assessment**: Automatic interpretation of metric values
+- **Export Capabilities**: Save comparison reports and visualizations
+- **Multi-format Support**: Works with all supported image formats
+
+#### 🔬 Advanced Research Features
+
+- **Batch Parameter Optimization**: Test multiple parameter combinations across image sets
+- **Flexible Pair Selection**: Research all pairs, first N pairs, or manually selected pairs
+- **Quality-based Optimization**: Find best parameters based on PSNR/SSIM scores
+- **Comprehensive Result Analysis**: CSV export with detailed metrics and timing data
+- **Progress Monitoring**: Real-time tracking with detailed status information
+- **Error Resilience**: Continue processing despite individual combination failures
+
+#### 🏗️ Architecture Enhancements
+
+- **New Models**: `ComparisonData` and `ImageMetrics` for quality analysis
+- **New Controllers**: `ComparisonController` for comparison functionality
+- **New Workers**: `BatchExhaustiveWorker` for advanced batch research
+- **New UI Components**: `ComparisonPanel` and `BatchExhaustiveDialog` widgets
+- **Enhanced Main Window**: Triple-mode interface supporting comparison mode
+
+#### 🔧 Technical Improvements
+
+- **Quality Metrics Library**: Integration with scikit-image for professional metrics
+- **Advanced Visualization**: SSIM difference maps and quality heat maps
+- **Enhanced Export System**: Comprehensive reporting with multiple format support
+- **Improved Error Handling**: Better validation and error recovery for comparison operations
+- **Memory Optimization**: Efficient handling of large image comparisons
 
 ### Version 1.3.0 - Batch Processing Edition
 
@@ -489,6 +651,8 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - OpenCV for image processing capabilities
 - Numba for high-performance computing acceleration
 - CUDA for GPU acceleration support
+- Scikit-image for professional quality metrics (PSNR, SSIM)
+- Matplotlib and Seaborn for data visualization and analytics
 
 ---
 

@@ -60,9 +60,13 @@ class BatchAppController(QObject):
         # Batch panel signals
         batch_panel = self.main_window.get_batch_panel()
         batch_panel.folders_changed.connect(self.on_batch_folders_changed)
+        batch_panel.exhaustive_research_requested.connect(self.start_batch_exhaustive_research)
         
         # Get batch data reference from the panel
         self.batch_data = batch_panel.get_batch_data()
+        
+        # Get comparison controller reference
+        self.comparison_controller = self.main_window.get_comparison_controller()
     
     def initialize_ui(self):
         """Initialize UI with settings"""
@@ -87,6 +91,8 @@ class BatchAppController(QObject):
             self.update_single_mode_ui()
         elif current_mode == "batch":
             self.update_batch_mode_ui()
+        elif current_mode == "comparison":
+            self.update_comparison_mode_ui()
     
     def update_single_mode_ui(self):
         """Update UI state for single image mode"""
@@ -118,6 +124,18 @@ class BatchAppController(QObject):
             self.main_window.set_status_message(f"Batch mode: {self.batch_data.total_pairs} pairs ready")
         else:
             self.main_window.set_status_message("Batch mode: Select folders to find image pairs")
+    
+    def update_comparison_mode_ui(self):
+        """Update UI state for comparison mode"""
+        # Update status based on comparison state
+        if self.comparison_controller.has_comparison_results():
+            comparison_data = self.comparison_controller.get_comparison_data()
+            metrics_summary = comparison_data.get_metrics_summary()
+            self.main_window.set_status_message(f"Comparison: {metrics_summary}")
+        elif self.comparison_controller.get_comparison_data().has_both_images:
+            self.main_window.set_status_message("Comparison: Ready to calculate metrics")
+        else:
+            self.main_window.set_status_message("Comparison: Load both images to compare")
     
     # Single Image Processing Methods
     @Slot()
@@ -310,7 +328,7 @@ class BatchAppController(QObject):
             self.main_window.show_warning_message("Warning", "Please load both image and mask first")
             return
         
-        dialog = ExhaustiveResearchDialog(self.main_window, self.image_data)
+        dialog = ExhaustiveResearchDialog(self.main_window, self.image_data.input_image, self.image_data.mask_image)
         dialog.exec()
     
     # Batch Processing Methods
@@ -363,6 +381,23 @@ class BatchAppController(QObject):
         """Handle batch folders changed"""
         self.update_batch_mode_ui()
     
+    @Slot()
+    def start_batch_exhaustive_research(self):
+        """Start batch exhaustive research"""
+        # Validate batch data
+        if not self.batch_data.is_ready_for_processing:
+            self.main_window.show_warning_message(
+                "Batch Not Ready",
+                "Please select valid folders with matching image pairs before starting exhaustive research."
+            )
+            return
+        
+        # Import and show the dialog
+        from views.dialogs.batch_exhaustive_dialog import BatchExhaustiveDialog
+        
+        dialog = BatchExhaustiveDialog(self.main_window, self.batch_data)
+        dialog.exec()
+    
     # Signal handlers for single image processing
     @Slot(int)
     def on_progress_update(self, value):
@@ -380,6 +415,20 @@ class BatchAppController(QObject):
             self.main_window.set_result_image(result_image)
             self.main_window.set_processing_state(False)
             self.main_window.set_status_message("Inpainting completed successfully")
+            
+            # Automatically set up comparison data if both images are available
+            if (self.image_data.has_input_image and self.image_data.has_result_image):
+                try:
+                    self.comparison_controller.set_images_from_processing(
+                        self.image_data.input_image,
+                        result_image
+                    )
+                    # Show info about comparison availability
+                    self.main_window.set_status_message(
+                        "Inpainting completed! Comparison data prepared. Switch to Comparison tab to view metrics."
+                    )
+                except Exception as e:
+                    print(f"Failed to set up comparison data: {e}")
             
             # Update UI state
             self.update_ui_state()

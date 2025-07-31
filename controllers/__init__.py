@@ -4,8 +4,9 @@ Controllers for the Image Inpainting Application
 
 from .app_controller import AppController
 from .batch_controller import BatchAppController
+from .comparison_controller import ComparisonController
 
 # Use batch controller as default
 AppController = BatchAppController
 
-__all__ = ['AppController', 'BatchAppController'] 
+__all__ = ['AppController', 'BatchAppController', 'ComparisonController'] 
