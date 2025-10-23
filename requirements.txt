@@ -27,6 +27,16 @@ matplotlib>=3.5.0
 seaborn>=0.11.0
 pandas>=1.3.0
 
+# Advanced Perceptual Metrics (Optional but Recommended)
+# LPIPS - Learned Perceptual Image Patch Similarity
+# Requires PyTorch
+torch>=1.10.0
+torchvision>=0.11.0
+lpips>=0.1.4
+
+# Note: FID (Fréchet Inception Distance) uses torch, torchvision, and scipy (already included above)
+# FID is automatically available when torch and scipy are installed
+
 # Note: The following are Python standard library modules (no installation needed):
 # - webbrowser (for opening URLs)
 # - tempfile (for temporary file handling)

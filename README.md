@@ -14,7 +14,7 @@ A professional image restoration and object removal tool with advanced features,
 - **Multiple Algorithms**: Optimized patch-based inpainting with configurable parameters
 - **High-Quality Results**: Professional-grade image restoration capabilities
 - **Batch Processing**: Process multiple image-mask pairs automatically with parallel processing
-- **Quality Analysis**: Comprehensive PSNR and SSIM metrics calculation and visualization
+- **Quality Analysis**: Comprehensive metrics including PSNR, SSIM, LPIPS, and FID
 
 ### 🎨 User Interface & Experience
 
@@ -47,14 +47,16 @@ A professional image restoration and object removal tool with advanced features,
 - **Batch Statistics**: Detailed summary of processing results and performance
 - **Flexible File Naming**: Supports various naming conventions (img1.jpg, mask1.png, etc.)
 - **Batch Exhaustive Research**: Run parameter optimization across multiple image pairs
-- **Quality Metrics**: Calculate PSNR/SSIM for all processed images in batch mode
+- **Quality Metrics**: Calculate PSNR, SSIM, and LPIPS for all processed images in batch mode
+- **FID Calculation**: Compute FID scores for large batches (50+ images) to assess distribution quality
 
 #### Comparison Mode (NEW!)
 - **Side-by-Side Comparison**: Visual comparison of original and inpainted images
-- **Quality Metrics Calculation**: Automatic PSNR and SSIM calculation
+- **Quality Metrics Calculation**: PSNR, SSIM, and LPIPS calculation with quality interpretation
 - **SSIM Difference Visualization**: Heat map showing structural differences
 - **Quality Interpretation**: Automatic quality assessment (Excellent/Good/Fair/Poor)
 - **Comparison Reports**: Export detailed analysis reports
+- **Perceptual Metrics**: Advanced LPIPS metric for human-aligned quality assessment
 - **Metrics History**: Track quality improvements across different parameter settings
 
 ### 🔧 Technical Features
@@ -66,7 +68,10 @@ A professional image restoration and object removal tool with advanced features,
 - **Cross-Platform**: Works on Windows, macOS, and Linux
 - **Thread-Safe Processing**: Safe concurrent operations for batch processing
 - **Comprehensive Logging**: Detailed logging for debugging and monitoring
-- **Quality Metrics Integration**: Built-in PSNR and SSIM calculation using scikit-image
+- **Quality Metrics Integration**: Built-in PSNR, SSIM, LPIPS, and FID calculation
+  - Traditional metrics (PSNR, SSIM) via scikit-image
+  - Perceptual metrics (LPIPS) via deep learning
+  - Distribution metrics (FID) for batch evaluation (50+ images)
 
 ## 📋 Requirements
 
@@ -88,7 +93,14 @@ matplotlib>=3.5.0  # For research analytics
 seaborn>=0.11.0    # For enhanced visualization
 pandas>=1.3.0      # For data handling
 scikit-image>=0.19.0  # For quality metrics (PSNR, SSIM)
+
+# Advanced Perceptual Metrics (Optional but Recommended)
+torch>=1.10.0      # For LPIPS and FID
+torchvision>=0.11.0  # For LPIPS and FID
+lpips>=0.1.4       # For perceptual similarity metric
 ```
+
+**Note**: LPIPS and FID are optional but highly recommended for advanced quality assessment. See [METRICS_GUIDE.md](METRICS_GUIDE.md) for details.
 
 ## 🚀 Installation
 
@@ -340,15 +352,42 @@ The application now supports running exhaustive parameter research across multip
 
 ### Supported Metrics
 
-The application calculates several image quality metrics:
+The application calculates several image quality metrics with different purposes:
 
+#### Traditional Metrics (Always Available)
 - **PSNR (Peak Signal-to-Noise Ratio)**: Measures pixel-level similarity
   - Higher values indicate better quality
-  - Excellent: >40 dB, Good: 30-40 dB, Fair: 20-30 dB, Poor: <20 dB
+  - Excellent: ≥40 dB, Good: 30-40 dB, Fair: 20-30 dB, Poor: <20 dB
+  - Fast computation, pixel-based
+  
 - **SSIM (Structural Similarity Index)**: Measures structural similarity
   - Values range from 0 to 1, higher is better
-  - Excellent: >0.95, Good: 0.85-0.95, Fair: 0.7-0.85, Poor: <0.7
+  - Excellent: ≥0.95, Good: 0.85-0.95, Fair: 0.7-0.85, Poor: <0.7
+  - Considers luminance, contrast, and structure
+  - Includes difference map visualization
+  
 - **MSE (Mean Squared Error)**: Basic pixel difference measurement
+  - Lower is better
+  - Simple and fast computation
+
+#### Advanced Perceptual Metrics (Requires PyTorch) ✨ NEW
+- **LPIPS (Learned Perceptual Image Patch Similarity)**
+  - Deep learning-based perceptual metric
+  - Values typically 0-1, **LOWER is BETTER**
+  - Excellent: ≤0.1, Good: ≤0.3, Fair: ≤0.5, Poor: >0.5
+  - More aligned with human perception than PSNR/SSIM
+  - GPU accelerated when available
+  - **Use for**: Single image quality assessment, perceptual similarity
+
+- **FID (Fréchet Inception Distance)**
+  - Distribution-based metric for image sets
+  - Lower is better (measures distribution distance)
+  - **Requires 50+ images** for reliable results
+  - Uses Inception v3 features
+  - **Use for**: Batch quality assessment, parameter optimization
+  - **Limitation**: Cannot be computed on small image sets (<50 images)
+
+**📘 For detailed information**, see [METRICS_GUIDE.md](METRICS_GUIDE.md)
 
 ### Comparison Features
 
@@ -357,6 +396,7 @@ The application calculates several image quality metrics:
 - **Quality Interpretation**: Automatic assessment of inpainting quality
 - **Detailed Reports**: Comprehensive analysis including image properties and metrics
 - **Export Capabilities**: Save comparison results and visualizations
+- **LPIPS Integration**: Optional perceptual metric calculation (checkbox in UI)
 
 ## ⌨️ Keyboard Shortcuts
 
@@ -520,25 +560,27 @@ For more detailed troubleshooting, press `F1` in the application to access the c
 #### 🆕 Major New Features
 
 - **Comparison Mode**: Complete image comparison system with quality metrics
-- **Quality Metrics Integration**: PSNR, SSIM, and MSE calculation using scikit-image
+- **Quality Metrics Integration**: PSNR, SSIM, MSE, LPIPS, and FID calculation
 - **Batch Exhaustive Research**: Run parameter optimization across multiple image pairs
-- **Advanced Metrics Visualization**: SSIM difference maps and quality interpretation
+- **Advanced Metrics Visualization**: SSIM difference maps, LPIPS perceptual scores, and FID batch analysis
 - **Comprehensive Reporting**: Export detailed comparison and research results
 
 #### 🎯 Comparison Features
 
 - **Side-by-Side Visualization**: Professional image comparison interface
-- **Quality Metrics Calculation**: Automatic PSNR and SSIM computation
+- **Quality Metrics Calculation**: PSNR, SSIM, and LPIPS computation with quality interpretation
 - **SSIM Difference Maps**: Heat map visualization of structural differences
 - **Quality Assessment**: Automatic interpretation of metric values
 - **Export Capabilities**: Save comparison reports and visualizations
+- **Perceptual Metrics**: LPIPS for human-aligned quality assessment
 - **Multi-format Support**: Works with all supported image formats
 
 #### 🔬 Advanced Research Features
 
 - **Batch Parameter Optimization**: Test multiple parameter combinations across image sets
 - **Flexible Pair Selection**: Research all pairs, first N pairs, or manually selected pairs
-- **Quality-based Optimization**: Find best parameters based on PSNR/SSIM scores
+- **Quality-based Optimization**: Find best parameters based on PSNR, SSIM, or LPIPS scores
+- **FID Evaluation**: Assess distribution quality for large batches (50+ images)
 - **Comprehensive Result Analysis**: CSV export with detailed metrics and timing data
 - **Progress Monitoring**: Real-time tracking with detailed status information
 - **Error Resilience**: Continue processing despite individual combination failures
@@ -553,10 +595,13 @@ For more detailed troubleshooting, press `F1` in the application to access the c
 
 #### 🔧 Technical Improvements
 
-- **Quality Metrics Library**: Integration with scikit-image for professional metrics
+- **Quality Metrics Library**: Integration with scikit-image for traditional metrics (PSNR, SSIM, MSE)
+- **Deep Learning Metrics**: LPIPS implementation using PyTorch for perceptual similarity
+- **Distribution Metrics**: FID calculation for batch quality assessment (50+ images)
 - **Advanced Visualization**: SSIM difference maps and quality heat maps
 - **Enhanced Export System**: Comprehensive reporting with multiple format support
 - **Improved Error Handling**: Better validation and error recovery for comparison operations
+- **GPU Acceleration**: LPIPS and FID support GPU acceleration when available
 - **Memory Optimization**: Efficient handling of large image comparisons
 
 ### Version 1.3.0 - Batch Processing Edition
@@ -651,7 +696,8 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - OpenCV for image processing capabilities
 - Numba for high-performance computing acceleration
 - CUDA for GPU acceleration support
-- Scikit-image for professional quality metrics (PSNR, SSIM)
+- Scikit-image for traditional quality metrics (PSNR, SSIM, MSE)
+- PyTorch for deep learning-based metrics (LPIPS, FID)
 - Matplotlib and Seaborn for data visualization and analytics
 
 ---
