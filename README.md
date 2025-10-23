@@ -2,7 +2,7 @@
 
 A professional image restoration and object removal tool with advanced features, modern UI, powerful batch processing capabilities, and comprehensive quality analysis tools.
 
-![Application Screenshot](logo.png)
+![Application Screenshot](images/logo.png)
 
 ## 🌟 Features
 
