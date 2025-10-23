@@ -176,10 +176,11 @@ class ComparisonData:
                     interpolation=cv2.INTER_CUBIC
                 )
             
-            # Calculate all metrics
+            # Calculate all metrics including LPIPS
             self.metrics = ImageMetrics.calculate_all_metrics(
                 self.original_image, 
-                self.inpainted_image
+                self.inpainted_image,
+                include_lpips=True
             )
             
             self._metrics_calculated = True
@@ -236,6 +237,11 @@ class ComparisonData:
             ssim_val = self.metrics['ssim']
             ssim_quality = MetricsComparison.interpret_ssim(ssim_val)
             detailed['SSIM'] = f"{ssim_val:.4f} ({ssim_quality})"
+        
+        if 'lpips' in self.metrics and self.metrics['lpips'] is not None:
+            lpips_val = self.metrics['lpips']
+            lpips_quality = MetricsComparison.interpret_lpips(lpips_val)
+            detailed['LPIPS'] = f"{lpips_val:.4f} ({lpips_quality})"
         
         if 'mse' in self.metrics:
             mse_val = self.metrics['mse']

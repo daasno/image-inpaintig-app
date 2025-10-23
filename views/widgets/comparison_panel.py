@@ -84,7 +84,7 @@ class ComparisonPanel(QWidget):
         
         # Calculate metrics button
         self.calculate_btn = QPushButton("📊 Calculate Metrics")
-        self.calculate_btn.setToolTip("Calculate PSNR and SSIM metrics")
+        self.calculate_btn.setToolTip("Calculate PSNR, SSIM, LPIPS, and MSE metrics")
         self.calculate_btn.clicked.connect(self.calculate_metrics_requested.emit)
         self.calculate_btn.setEnabled(False)
         button_layout.addWidget(self.calculate_btn)
@@ -221,6 +221,11 @@ class ComparisonPanel(QWidget):
         self.ssim_label.setFont(QFont("Courier", 10))
         metrics_group_layout.addWidget(self.ssim_label)
         
+        # LPIPS display
+        self.lpips_label = QLabel("LPIPS: Not calculated")
+        self.lpips_label.setFont(QFont("Courier", 10))
+        metrics_group_layout.addWidget(self.lpips_label)
+        
         # MSE display
         self.mse_label = QLabel("MSE: Not calculated")
         self.mse_label.setFont(QFont("Courier", 10))
@@ -263,7 +268,14 @@ class ComparisonPanel(QWidget):
             "• >0.95: Excellent\n"
             "• 0.85-0.95: Good\n"
             "• 0.7-0.85: Fair\n"
-            "• <0.7: Poor"
+            "• <0.7: Poor\n\n"
+            "LPIPS (Learned Perceptual Similarity):\n"
+            "• Range: 0 to 1+\n"
+            "• Lower values = more perceptually similar\n"
+            "• <0.1: Excellent\n"
+            "• 0.1-0.3: Good\n"
+            "• 0.3-0.5: Fair\n"
+            "• >0.5: Poor"
         )
         info_group_layout.addWidget(self.info_text)
         
@@ -428,6 +440,7 @@ class ComparisonPanel(QWidget):
             if not metrics_dict:
                 self.psnr_label.setText("PSNR: Not calculated")
                 self.ssim_label.setText("SSIM: Not calculated")
+                self.lpips_label.setText("LPIPS: Not calculated")
                 self.mse_label.setText("MSE: Not calculated")
                 self.quality_label.setText("Load both images and calculate metrics")
                 return
@@ -440,6 +453,15 @@ class ComparisonPanel(QWidget):
             if 'ssim' in metrics_dict:
                 ssim_val = metrics_dict['ssim']
                 self.ssim_label.setText(f"SSIM: {ssim_val:.4f}")
+            
+            if 'lpips' in metrics_dict:
+                lpips_val = metrics_dict['lpips']
+                if lpips_val is not None:
+                    self.lpips_label.setText(f"LPIPS: {lpips_val:.4f}")
+                else:
+                    self.lpips_label.setText("LPIPS: Not available")
+            else:
+                self.lpips_label.setText("LPIPS: Not calculated")
             
             if 'mse' in metrics_dict:
                 mse_val = metrics_dict['mse']
