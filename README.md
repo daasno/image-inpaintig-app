@@ -12,6 +12,7 @@ A professional image restoration and object removal tool with advanced features,
 - **Triple Processing Modes**: Single image, batch processing, and comparison analysis support
 - **Dual Implementation**: CPU and GPU (CUDA) acceleration support
 - **Multiple Algorithms**: Optimized patch-based inpainting with configurable parameters
+- **Custom Algorithm Support**: Easy integration of your own inpainting algorithms
 - **High-Quality Results**: Professional-grade image restoration capabilities
 - **Batch Processing**: Process multiple image-mask pairs automatically with parallel processing
 - **Quality Analysis**: Comprehensive metrics including PSNR, SSIM, LPIPS, and FID
@@ -681,6 +682,240 @@ For more detailed troubleshooting, press `F1` in the application to access the c
 - **Interactive Mask Editor**: Built-in drawing tools for creating custom masks
 - **Modular Architecture**: Clean separation of concerns for maintainability
 - **Cross-Platform Compatibility**: Enhanced support for different operating systems
+
+## 🔧 Adding Your Own Inpainting Algorithm
+
+The application is designed to easily accommodate custom inpainting algorithms. Follow this step-by-step guide to integrate your own algorithm:
+
+### Quick Reference
+
+For experienced developers, here's the minimal checklist:
+
+1. ✅ Create algorithm class with `__init__(image, mask, patch_size, **kwargs)` and `inpaint()` methods
+2. ✅ Add import in `models/inpaint_worker.py` with availability flag
+3. ✅ Update `_validate_inputs()`, `run()` methods and add `_run_custom_inpainting()`
+4. ✅ Add radio buttons in `views/widgets/control_panel.py` and `views/widgets/batch_panel.py`
+5. ✅ Test with simple algorithm first
+
+### Detailed Guide
+
+### Step 1: Create Your Algorithm Class
+
+Create a new Python file in the root directory (e.g., `my_custom_inpainter.py`) with the following structure:
+
+```python
+import numpy as np
+
+class MyCustomInpainter:
+    def __init__(self, image, mask, patch_size=9, **kwargs):
+        """
+        Initialize your custom inpainter
+        
+        Args:
+            image: Input image as numpy array (uint8, shape: H x W x 3 for color)
+            mask: Binary mask as numpy array (uint8, 1=inpaint, 0=preserve)
+            patch_size: Size of patches for analysis (optional)
+            **kwargs: Any additional parameters your algorithm needs
+        """
+        self.image = image.astype('uint8')
+        self.mask = mask.astype('uint8')
+        self.patch_size = patch_size
+        
+        # Add your custom parameters here
+        # self.my_parameter = kwargs.get('my_parameter', default_value)
+        
+    def inpaint(self):
+        """
+        Main inpainting method
+        
+        Returns:
+            numpy.ndarray: Inpainted image (same shape and type as input)
+        """
+        # Implement your inpainting algorithm here
+        # Process self.image using self.mask
+        # Return the inpainted result
+        
+        result_image = self.image.copy()  # Replace with your algorithm
+        
+        # Example: Simple copy from neighboring pixels (not a real algorithm)
+        # for y in range(self.image.shape[0]):
+        #     for x in range(self.image.shape[1]):
+        #         if self.mask[y, x] == 1:  # Pixel needs inpainting
+        #             # Your inpainting logic here
+        #             pass
+        
+        return result_image
+```
+
+### Step 2: Integrate with the Worker System
+
+1. **Add Import Statement**: In `models/inpaint_worker.py`, add your import after the existing ones:
+
+```python
+try:
+    from my_custom_inpainter import MyCustomInpainter
+    CUSTOM_AVAILABLE = True
+except ImportError:
+    CUSTOM_AVAILABLE = False
+    print("Warning: Custom inpainter not available")
+```
+
+2. **Update Validation**: In the `_validate_inputs()` method, add:
+
+```python
+if self.implementation == "CUSTOM" and not CUSTOM_AVAILABLE:
+    raise ValueError("Custom implementation requested but not available")
+```
+
+3. **Add to Main Runner**: In the `run()` method, add:
+
+```python
+elif self.implementation == "CUSTOM":
+    self._run_custom_inpainting()
+```
+
+4. **Implement Runner Method**: Uncomment and modify the template method at the end of `inpaint_worker.py`:
+
+```python
+def _run_custom_inpainting(self):
+    """Run custom inpainting algorithm"""
+    self.status_update.emit("Starting custom inpainting...")
+    
+    # Prepare mask for your implementation
+    mask_binary = (self.mask > 127).astype(np.uint8)
+    
+    if mask_binary.sum() == 0:
+        self.error_occurred.emit("No pixels to inpaint (mask is empty)")
+        return
+    
+    self.progress_update.emit(0)
+    
+    # Initialize your custom inpainter
+    inpainter = MyCustomInpainter(
+        self.image, mask_binary, self.patch_size, 
+        p=self.p_value  # Add any other parameters
+    )
+    
+    # Run the inpainting process
+    self.status_update.emit("Processing with custom implementation...")
+    result = inpainter.inpaint()
+    
+    self.progress_update.emit(100)
+    self.status_update.emit("Custom inpainting completed")
+    
+    # Signal completion with result
+    self.process_complete.emit(result)
+
+@staticmethod
+def check_custom_availability() -> bool:
+    """Check if custom implementation is available"""
+    return CUSTOM_AVAILABLE
+```
+
+### Step 3: Update the User Interface
+
+1. **Control Panel** (`views/widgets/control_panel.py`):
+   - Add radio button in `setup_ui()` method:
+   ```python
+   self.custom_radio = QRadioButton("My Custom Algorithm")
+   self.impl_group.addButton(self.custom_radio)
+   impl_layout.addWidget(self.custom_radio)
+   ```
+
+2. **Batch Panel** (`views/widgets/batch_panel.py`):
+   - Add similar radio button in `create_parameters_section()` method
+   - Connect signal handler: `self.custom_radio.toggled.connect(self._on_implementation_changed)`
+
+3. **Update Signal Handlers**: Modify implementation change handlers to handle "CUSTOM" option
+
+### Step 4: Test Your Integration
+
+1. **Basic Test**: Create a simple test algorithm that just copies the input image
+2. **Load Test Image**: Use the application to load an image and create a mask
+3. **Select Your Algorithm**: Choose your custom implementation from the radio buttons
+4. **Run Inpainting**: Process the image and verify the result
+
+### Step 5: Advanced Features (Optional)
+
+#### Progress Tracking
+If your algorithm supports progress tracking, you can emit progress updates:
+
+```python
+def inpaint(self):
+    total_pixels = np.sum(self.mask == 1)
+    processed_pixels = 0
+    
+    # Your algorithm loop here
+    for step in your_algorithm_steps:
+        # Process some pixels
+        processed_pixels += pixels_processed_in_this_step
+        
+        # Emit progress (if you have access to the worker)
+        progress = int((processed_pixels / total_pixels) * 100)
+        # self.progress_callback(progress)  # You'll need to pass this callback
+```
+
+#### Custom Parameters
+Add custom parameters to your algorithm and expose them in the UI:
+
+```python
+# In your algorithm class
+def __init__(self, image, mask, patch_size=9, my_param=1.0, **kwargs):
+    # ... existing code ...
+    self.my_param = my_param
+```
+
+Then add UI controls in the control panels to adjust these parameters.
+
+#### Batch Processing Support
+Your algorithm automatically works with batch processing once integrated with the worker system.
+
+### Example: Simple Blur Inpainter
+
+Here's a complete example of a simple custom inpainter that uses Gaussian blur:
+
+```python
+# file: blur_inpainter.py
+import numpy as np
+import cv2
+
+class BlurInpainter:
+    def __init__(self, image, mask, patch_size=9, blur_radius=5, **kwargs):
+        self.image = image.astype('uint8')
+        self.mask = mask.astype('uint8')
+        self.patch_size = patch_size
+        self.blur_radius = blur_radius
+        
+    def inpaint(self):
+        # Create a blurred version of the entire image
+        blurred = cv2.GaussianBlur(self.image, (self.blur_radius*2+1, self.blur_radius*2+1), 0)
+        
+        # Copy blurred pixels only where mask indicates inpainting needed
+        result = self.image.copy()
+        if len(self.image.shape) == 3:  # Color image
+            mask_3d = np.stack([self.mask] * 3, axis=2)
+            result = np.where(mask_3d == 1, blurred, result)
+        else:  # Grayscale
+            result = np.where(self.mask == 1, blurred, result)
+            
+        return result
+```
+
+### Tips for Success
+
+1. **Start Simple**: Begin with a basic algorithm to test the integration
+2. **Follow Conventions**: Use the same parameter names and types as existing algorithms
+3. **Handle Errors**: Add proper error handling and validation
+4. **Test Thoroughly**: Test with different image sizes, mask shapes, and parameters
+5. **Document**: Add docstrings and comments to your algorithm
+6. **Performance**: Consider performance for large images and batch processing
+
+### Troubleshooting
+
+- **Import Errors**: Ensure your algorithm file is in the root directory and has no syntax errors
+- **UI Not Updating**: Make sure you've added the radio button to both control and batch panels
+- **Algorithm Not Running**: Check that the implementation string matches exactly ("CUSTOM")
+- **Progress Issues**: Ensure progress updates are between 0-100 and emit completion signal
 
 ## 🤝 Contributing
 

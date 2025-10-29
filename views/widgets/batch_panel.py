@@ -134,9 +134,14 @@ class BatchPanel(QWidget):
         self.cpu_radio = QRadioButton("CPU")
         self.gpu_radio = QRadioButton("GPU (CUDA)")
         
+        # ADD YOUR CUSTOM ALGORITHM RADIO BUTTON HERE:
+        # Example:
+        # self.custom_radio = QRadioButton("My Custom Algorithm")
+        
         self.impl_group = QButtonGroup(self)
         self.impl_group.addButton(self.cpu_radio)
         self.impl_group.addButton(self.gpu_radio)
+        # self.impl_group.addButton(self.custom_radio)  # Add your custom radio button
         
         # Check GPU availability
         gpu_available = InpaintWorker.check_gpu_availability()
@@ -157,6 +162,7 @@ class BatchPanel(QWidget):
         layout.addWidget(impl_label, 0, 0)
         layout.addWidget(self.cpu_radio, 0, 1)
         layout.addWidget(self.gpu_radio, 0, 2)
+        # layout.addWidget(self.custom_radio, 0, 3)  # Add your custom radio button to layout
         
         # Patch size
         patch_label = QLabel("Patch Size:")

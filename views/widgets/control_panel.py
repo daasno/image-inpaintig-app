@@ -87,14 +87,20 @@ class ControlPanel(QGroupBox):
         self.cpu_radio = QRadioButton("CPU")
         self.gpu_radio = QRadioButton("GPU (CUDA)")
         
+        # ADD YOUR CUSTOM ALGORITHM RADIO BUTTON HERE:
+        # Example:
+        # self.custom_radio = QRadioButton("My Custom Algorithm")
+        
         # Group the radio buttons
         self.impl_group = QButtonGroup(self)
         self.impl_group.addButton(self.cpu_radio)
         self.impl_group.addButton(self.gpu_radio)
+        # self.impl_group.addButton(self.custom_radio)  # Add your custom radio button
         
         impl_layout.addWidget(impl_label)
         impl_layout.addWidget(self.cpu_radio)
         impl_layout.addWidget(self.gpu_radio)
+        # impl_layout.addWidget(self.custom_radio)  # Add your custom radio button to layout
         impl_layout.addStretch()
         
         layout.addLayout(impl_layout)
